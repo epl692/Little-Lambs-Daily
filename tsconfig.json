@@ -1,0 +1,22 @@
+{
+  "extends": "./framework/tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@sync/core": ["framework/packages/core/src/index.ts"],
+      "@sync/testkit": ["framework/packages/testkit/src/index.ts"],
+      "@sync/transport-websocket": ["framework/packages/transport-websocket/src/index.ts"],
+      "@sync/transport-webrtc": ["framework/packages/transport-webrtc/src/index.ts"],
+      "@sync/relay-server": ["framework/packages/relay-server/src/index.ts"],
+      "@sync/spaces": ["framework/packages/spaces/src/index.ts"],
+      "@sync/identity-invite": ["framework/packages/identity-invite/src/index.ts"],
+      "@sync/modules": ["framework/packages/modules/src/index.ts"],
+      "@sync/modules/migrate": ["framework/packages/modules/src/schema/migrate.ts"],
+      "@sync/app-build": ["framework/packages/app-build/src/index.ts"],
+      "@sync/blobs": ["framework/packages/blobs/src/index.ts"],
+      "@sync/blobs/ref": ["framework/packages/blobs/src/ref.ts"]
+    }
+  },
+  "include": ["*.ts", "infra", "modules", "scripts", "tests"]
+}
