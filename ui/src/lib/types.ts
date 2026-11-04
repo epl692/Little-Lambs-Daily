@@ -65,6 +65,7 @@ export interface Data {
   create(space: string, type: string, fields: Record<string, any>, opts?: { id?: string }): Promise<Obj>;
   update(id: string, fields: Record<string, any>): Promise<Obj>;
   remove(id: string): Promise<void>;
+  undo(id: string): Promise<void>;
   get(id: string): Promise<Obj | undefined>;
   query(spec: { type: string; space?: string; where?: (o: Obj) => boolean }): Query;
 }

@@ -78,3 +78,14 @@ export function fromDateInput(v: string): number | undefined {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
   return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12).getTime() : undefined;
 }
+
+/** 'YYYY-MM-DDTHH:mm' for an <input type="datetime-local">, and back (local time). */
+export function toDateTimeInput(ms: number): string {
+  const d = new Date(ms);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+export function fromDateTimeInput(v: string): number | undefined {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(v);
+  return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), Number(m[4]), Number(m[5])).getTime() : undefined;
+}

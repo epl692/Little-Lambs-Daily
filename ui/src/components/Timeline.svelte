@@ -68,7 +68,7 @@
         {#if r.type === 'hour'}
           <li class="hour" aria-hidden="true">{r.label}</li>
         {:else}
-          <TimelineItem entry={r.entry} now={ctx.app.now} childName={showChild ? (names.get(String(r.entry.fields.child)) ?? '') : ''} />
+          <TimelineItem {ctx} entry={r.entry} now={ctx.app.now} childName={showChild ? (names.get(String(r.entry.fields.child)) ?? '') : ''} />
         {/if}
       {/each}
     </ol>

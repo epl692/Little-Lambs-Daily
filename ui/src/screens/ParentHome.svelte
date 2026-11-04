@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { App } from '../lib/app.svelte';
   import { familyNameOf } from '../lib/service';
+  import AddFab from '../components/AddFab.svelte';
   import InstallHint from '../components/InstallHint.svelte';
   import Avatar from '../components/Avatar.svelte';
   import StatusCard from '../components/StatusCard.svelte';
@@ -52,3 +53,4 @@
 
   <InstallHint />
 </main>
+{#if kids.length > 0}<AddFab {ctx} preset={sel === 'all' ? undefined : [sel]} />{/if}

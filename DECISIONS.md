@@ -114,6 +114,29 @@ All onboarding logic is `ui/src/lib/service.ts`, tested on real encrypted nodes.
 - **Test data** is seeded through the dev build's `window.__syncHost` (`npm run e2e` builds the dev build first). Tests that rely
   on seeded entries being in the past skip before 6 AM local time.
 
+## D-013 Add flow (phase 5)
+- **Engine vs UI:** `ui/src/lib/log.ts` builds entries (one per child, shared `batchId` for 2+, all-or-nothing), remembers last-used
+  values and recent suggestions (device-local), wakes naps, edits, undoes. Tested on real encrypted nodes
+  (`tests/contract/logging.integration.test.ts`). The sheet (`AddSheet.svelte`) is state and layout only.
+- **Undo** is the framework's: undoing a create deletes it, undoing a wake restores the open nap, undoing a delete restores the
+  entry. It reverses *this device's* most recent change to that object, inside the retention window. The toast lasts 6s.
+- **`daycare.entry` now has `merge.editResurrects`** — the framework refuses to undo a delete otherwise. Consequence: an edit that
+  races a delete on another device brings the entry back. Judged acceptable for a daily log.
+- **Authz bug found and fixed:** undoing a delete writes an update that re-asserts *every* field, which the parent frozen-field
+  rule (`kind`, `child`, `createdBy`, `createdByRole`) rejected. Frozen fields may now be re-written with the same value, never
+  changed. Covered by unit and real-node tests, and mutation-checked.
+- **Svelte state proxies cannot go into IndexedDB** ("could not be cloned"). `clean()` copies arrays/objects to plain values.
+- **Who step:** skipped when the sheet is opened for a child (long-press or "+" on a card, the "+" on a child's timeline, a parent's
+  single child). "All checked in" selects the children who are here. Check-in lists those not here first, other kinds those here.
+- **Quick add:** long-press a roster card (500 ms) *or* the "+" in its corner (keyboard and mouse users cannot long-press).
+- **Diaper** saves on the type button; the extras chips (More…) apply to that save.
+- **Bottle:** "finished" follows "offered" until set by hand and can never exceed it (the schema forbids it too).
+- **Nap banner** shows open naps from any day (a nap left open overnight still shows, with the 3-hour "still sleeping?" hint).
+- **Card menu (⋯)** sits in the card footer so it can never change the header row the timeline dot is centred on. Providers can
+  change anything; parents only their own. Edit changes one entry and marks it "edited".
+- **Deferred:** Photo tile (phase 7), "Edit for all in batch", limiting a parent's edit of their own check-in time to the same day
+  (open item 3 is "yes" for now with no day limit), focus trapping in the sheet beyond moving focus into it.
+
 ## Open items (SPEC 13) — assumptions so far
 1. Names/colors: defaults from spec (`APP_NAME`, `DAYCARE_NAME`, accent `#14B8A6`).
 2. Since-last threshold: 3h.

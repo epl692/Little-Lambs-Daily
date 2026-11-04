@@ -2,6 +2,7 @@
   import type { App } from '../lib/app.svelte';
   import { age } from '../lib/time';
   import Avatar from '../components/Avatar.svelte';
+  import AddFab from '../components/AddFab.svelte';
   import StatusCard from '../components/StatusCard.svelte';
   import Timeline from '../components/Timeline.svelte';
 
@@ -25,3 +26,4 @@
   <StatusCard {ctx} childId={child} />
   <Timeline {ctx} childId={child} />
 </main>
+<AddFab {ctx} preset={[child]} />

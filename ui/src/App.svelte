@@ -15,7 +15,9 @@
   import Settings from './screens/Settings.svelte';
   import ShowLinkCode from './screens/ShowLinkCode.svelte';
   import Welcome from './screens/Welcome.svelte';
+  import AddSheet from './components/AddSheet.svelte';
   import ApprovalDialog from './components/ApprovalDialog.svelte';
+  import Snackbar from './components/Snackbar.svelte';
 
   let { api }: { api: UiApi } = $props();
   // svelte-ignore state_referenced_locally
@@ -62,4 +64,8 @@
   <ShowLinkCode {ctx} />
 {/if}
 
+{#if ctx.app.sheet}
+  {#key ctx.app.sheet}<AddSheet {ctx} sheet={ctx.app.sheet} />{/key}
+{/if}
+<Snackbar {ctx} />
 <ApprovalDialog {ctx} />

@@ -73,6 +73,16 @@ describe('daycare-authz', () => {
     }
   });
 
+  it('allows re-asserting unchanged frozen fields (that is what undoing a delete writes), but not changing them', async () => {
+    const mine = stored({ createdBy: 'mom', createdByRole: 'parent', kind: 'familyNote', child: 'c1', text: 'old' });
+    const reassert: AuthzBody = { obj: 'o1', op: 'update', type: 'daycare.entry', fields: { createdBy: 'mom', createdByRole: 'parent', kind: 'familyNote', child: 'c1', text: 'old' } };
+    expect((await run('mom-phone', reassert, mine)).verdict).toBe('accept');
+    expect((await run('mom-phone', { ...reassert, fields: { ...reassert.fields, kind: 'nap' } }, mine)).verdict).toBe('reject');
+    expect((await run('mom-phone', { ...reassert, fields: { ...reassert.fields, child: 'c2' } }, mine)).verdict).toBe('reject');
+    // and never on someone else's item
+    expect((await run('mom-phone', reassert, stored({ createdBy: 'bri', kind: 'nap', child: 'c1' }))).verdict).toBe('reject');
+  });
+
   it('lets parents edit only familyNotes on a child', async () => {
     const upd = (fields: Record<string, unknown>): AuthzBody => ({ obj: 'c', op: 'update', type: 'daycare.child', fields: fields as never });
     expect((await run('mom-phone', upd({ familyNotes: 'allergic to cats' }))).verdict).toBe('accept');

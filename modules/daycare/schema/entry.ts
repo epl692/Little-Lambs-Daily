@@ -42,6 +42,8 @@ function objectCheck(f: Record<string, any>): string | undefined {
 export const entry: ObjectTypeDef = {
   name: 'entry',
   label: 'Timeline entry',
+  // "Delete, then Undo" must work (SPEC 9): the framework only undoes a delete for types where an edit may restore it.
+  merge: { editResurrects: true },
   versions: [
     {
       version: 1,

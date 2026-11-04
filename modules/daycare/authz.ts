@@ -125,8 +125,9 @@ export function createDaycareAuthz(deps: AuthzDeps): DaycareAuthz {
       if (!ctx.existing) return defer('object-not-here-yet');
       if (existingField(ctx.existing, 'createdBy') !== who.user) return reject('parents may only change their own items');
       if (body.op === 'update') {
+        // Frozen fields may be written again with the SAME value: undoing a delete re-asserts every field of the object.
         const frozen = PARENT_FROZEN[body.type]!;
-        const touched = Object.keys(body.fields).find((k) => frozen.includes(k));
+        const touched = Object.keys(body.fields).find((k) => frozen.includes(k) && body.fields[k] !== existingField(ctx.existing, k));
         if (touched) return reject(`parents cannot change ${touched}`);
       }
       return ACCEPT;

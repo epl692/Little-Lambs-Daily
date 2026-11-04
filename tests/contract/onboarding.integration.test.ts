@@ -21,6 +21,7 @@ const mk = (n: SecureNode): Service => {
     create: (s, t, f, o) => n.core.create(s, t, f, o) as never,
     update: (id, f) => n.core.update(id, f) as never,
     remove: (id) => n.core.remove(id),
+    undo: (id) => n.core.undo(id),
     get: (id) => n.core.get(id) as never,
     query: (spec) => n.core.query(spec) as never,
   };

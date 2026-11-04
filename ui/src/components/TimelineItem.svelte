@@ -1,8 +1,22 @@
 <script lang="ts">
   import { KIND_META, authorLine, kindOf, summary, timeText, type Entry } from '../lib/format';
+  import type { App } from '../lib/app.svelte';
   import { fmtDateLong, HOUR } from '../lib/time';
+  import EntryMenu from './EntryMenu.svelte';
 
-  let { entry, now, childName = '' }: { entry: Entry; now: number; childName?: string } = $props();
+  let { ctx, entry, now, childName = '' }: { ctx: App; entry: Entry; now: number; childName?: string } = $props();
+  // Providers may change anything (moderation); a parent only their own entries (the authz validator enforces the same).
+  const canChange = $derived(ctx.role() === 'provider' || entry.fields.createdBy === ctx.me());
+  const canWake = $derived(ctx.role() === 'provider');
+  async function wake() {
+    try {
+      await ctx.logger.wake(entry);
+      ctx.buzz();
+      ctx.showToast(`${childName || 'Nap'} woke up`, () => ctx.logger.undo([entry.id]));
+    } catch (e) {
+      ctx.showToast(e instanceof Error ? e.message : 'Could not wake');
+    }
+  }
   const f = $derived(entry.fields);
   const kind = $derived(kindOf(entry));
   const meta = $derived(KIND_META[kind]);
@@ -24,8 +38,12 @@
     </header>
     {#if summary(entry)}<p class="sum" data-testid="tl-summary">{summary(entry)}</p>{/if}
     {#if f.text}<p class="txt">{f.text}</p>{/if}
+    {#if open && canWake}<button type="button" class="btn wake" data-testid="wake" onclick={wake}>☀️ Woke up</button>{/if}
     {#if long}<p class="hint">Still sleeping? This nap is over 3 hours.</p>{/if}
-    <footer class="meta">{authorLine(entry)}{#if f.editedAt} · edited{/if}</footer>
+    <footer class="meta">
+      <span>{authorLine(entry)}{#if f.editedAt} · edited{/if}</span>
+      {#if canChange}<EntryMenu {ctx} {entry} />{/if}
+    </footer>
   </article>
 </li>
 
@@ -54,7 +72,7 @@
   .who { color: var(--muted); }
   .sum { margin: 4px 0 0; }
   .txt { margin: 6px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .wake { margin-top: 8px; min-height: 44px; }
   .hint { margin: 6px 0 0; color: var(--warn); font-weight: 600; }
-  .meta { margin-top: 6px; color: var(--muted); font-size: 0.8125rem; }
-  .meta:empty { display: none; }
+  .meta { display: flex; align-items: center; min-height: 28px; margin-top: 4px; color: var(--muted); font-size: 0.8125rem; }
 </style>
