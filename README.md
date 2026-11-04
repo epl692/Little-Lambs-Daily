@@ -32,4 +32,4 @@ See SPEC.md section 10. `modules/daycare` is the framework module, `ui/` the Sve
 
 ## Status
 
-Phase 1 (scaffold) done: builds, passes `check` and `verify-installable`, theme system works. Next is phase 2 (data layer and authz validator).
+Phases 1 (scaffold) and 2 (data layer + authz validator) done. Next: phase 3 (onboarding and pairing).

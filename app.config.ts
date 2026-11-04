@@ -1,5 +1,7 @@
+import { createBlobs, defineSyncBlob } from '@sync/blobs';
 import type { AppConfig } from '@sync/modules';
 import identity from './infra/identity/index';
+import { createDaycareAuthz } from './modules/daycare/authz';
 import daycare from './modules/daycare/index';
 import { ACCENT, APP_NAME } from './modules/daycare/constants';
 
@@ -16,6 +18,21 @@ export default {
   assets: ['public/theme-init.js'],
   // Add the relay origin here (wss://...) once it has a URL. See DECISIONS.md.
   // connectSrc: ['wss://relay.example.com'],
-  // Phase 1: nothing to bind yet. Later: authz validator (phase 2), Staff Space (phase 3), createBlobs (phase 7).
+
+  // Runs once the core is open and BEFORE transports start (start-app.ts), so the authz validator is in place before
+  // any remote packet arrives. Also where attachments are switched on (photos, SPEC 8).
+  async blobs({ core, spaces }) {
+    const s = spaces!;
+    core.registerValidator(
+      createDaycareAuthz({
+        members: (space) => s.members(space),
+        onMemberChange: (cb) => s.on((e) => e.kind === 'member:changed' && cb(e.space)),
+      }),
+    );
+    const blobs = await createBlobs({ core, keys: s.blobKeys, config: { budgetBytes: 500 * 1024 * 1024 } });
+    defineSyncBlob(blobs);
+    return blobs;
+  },
+  // Later: Staff Space + family Space setup and bindSpace (phase 3).
   async onReady(_host, _spaces) {},
 } satisfies AppConfig;

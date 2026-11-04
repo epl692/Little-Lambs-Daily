@@ -1,16 +1,21 @@
 import type { ModuleDefinition } from '@sync/modules';
 import { mount } from '../../ui/dist/ui.js';
 import { APP_NAME, DAYCARE_NAME } from './constants';
+import { child } from './schema/child';
+import { comment } from './schema/comment';
+import { entry } from './schema/entry';
+import { reaction } from './schema/reaction';
+import { familyIndex, settings, staffInvite } from './schema/staff';
 
 /**
- * The single `daycare` module. Phase 1: no object types yet (schemas arrive in phase 2), one root view that mounts the
- * Svelte UI. The UI never sees framework internals: it gets a thin typed `api` built from ctx.
+ * The single `daycare` module: every object type (SPEC 5) and one root view that mounts the Svelte UI. The UI never
+ * sees framework internals: it gets a thin typed `api` built from ctx. Authorization lives in ./authz.ts, not in schemas.
  */
 export default {
   id: 'daycare',
-  version: '0.1.0',
+  version: '0.2.0',
   provides: {
-    types: [],
+    types: [child, entry, comment, reaction, settings, familyIndex, staffInvite],
     views: {
       root: (ctx) =>
         class DaycareRoot extends HTMLElement {
