@@ -25,8 +25,9 @@ export interface Settings {
   appName: string;
   requireApproval: boolean;
   defaultInviteHours: number;
+  sinceThresholdMinutes: number;
 }
-export const DEFAULT_SETTINGS: Settings = { daycareName: '', appName: '', requireApproval: true, defaultInviteHours: 24 };
+export const DEFAULT_SETTINGS: Settings = { daycareName: '', appName: '', requireApproval: true, defaultInviteHours: 24, sinceThresholdMinutes: 180 };
 
 export interface LocalInvite {
   space: string;

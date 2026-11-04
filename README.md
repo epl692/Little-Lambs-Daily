@@ -23,7 +23,7 @@ npm install
 | `npm test` | Unit and contract tests |
 | `npm run typecheck` / `npm run lint` | Types (TS + Svelte) and ESLint |
 | `npm run relay` | Local relay at ws://localhost:8787 (`BLOB_DIR=./blobs` for photos) |
-| `npm run e2e` | Two-browser Playwright tests against the built app and a local relay (run `npm run build` and `npx playwright install chromium` first) |
+| `npm run e2e` | Two-browser Playwright tests against the built app and a local relay (builds the dev build itself; run `npx playwright install chromium` once first) |
 
 ## Layout
 
@@ -38,4 +38,4 @@ See SPEC.md section 10. `modules/daycare` is the framework module, `ui/` the Sve
 
 ## Status
 
-Phases 1 to 3 done: scaffold, data layer and authz, onboarding and pairing (provider setup, families, QR invites with SAS approval, second provider, device linking). Next: phase 4 (roster and timeline).
+Phases 1 to 4 done: scaffold, data layer and authz, onboarding and pairing, roster and timeline (read-only; logging comes in phase 5). Next: phase 5 (add flow).

@@ -38,3 +38,13 @@ textarea { min-height: 96px; resize: vertical; }
 .sas { font-size: 1.5rem; font-weight: 700; line-height: 1.5; text-align: center; letter-spacing: 0.01em; padding: 16px; border-radius: var(--radius); background: var(--bg); border: 2px dashed var(--accent-ink); }
 .avatar { width: 40px; height: 40px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; background: var(--accent); color: #04211e; font-weight: 700; flex: none; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+
+/* Kind colors (SPEC 6.1): used for timeline dots and accents. Always paired with an icon and a text label. */
+:root {
+  --k-checkin: #16a34a; --k-checkout: #64748b; --k-nap: #6366f1; --k-bottle: #0ea5e9; --k-snack: #f97316; --k-meal: #d97706;
+  --k-diaper: #14b8a6; --k-photo: #ec4899; --k-providerNote: #8b5cf6; --k-familyNote: #f43f5e; --k-home: #84cc16;
+  /* child avatar palette */
+  --c-rose: #fb7185; --c-orange: #fb923c; --c-amber: #fbbf24; --c-lime: #a3e635; --c-teal: #2dd4bf; --c-sky: #38bdf8; --c-indigo: #a5b4fc; --c-violet: #c4b5fd;
+  --warn: #b45309;
+}
+:root[data-theme='dark'] { --warn: #fbbf24; }

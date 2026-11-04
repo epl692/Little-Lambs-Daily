@@ -26,8 +26,10 @@ Revisit in phase 2 if role lookup from inside a validator proves impossible (SPE
 
 ## D-005 Local tooling
 - `fast-check` is a root devDependency because `@sync/testkit` needs it and the framework's own devDeps aren't installed.
-- Docker is not installed on the dev machine. `relay/` has a Dockerfile and compose file for the Unraid host; locally use
-  `npm run relay` (ws://localhost:8787, set `BLOB_DIR=./blobs` for attachments).
+- Docker Desktop is installed per-user, so `docker` may be missing from PATH in an already-open shell
+  (`%LOCALAPPDATA%\Programs\DockerDesktop\resources\bin`). The relay image builds and the pairing e2e passes against the container
+  (`docker compose -f relay/docker-compose.yml up -d --build`). Without Docker, `npm run relay` runs the same relay
+  (ws://localhost:8787, set `BLOB_DIR=./blobs` for attachments).
 - The relay Dockerfile builds from `framework/` with its own lockfile.
 
 ## D-006 Placeholder art
@@ -92,6 +94,25 @@ All onboarding logic is `ui/src/lib/service.ts`, tested on real encrypted nodes.
   (phone cameras open the link directly; pasting works today).
 - Removing a provider (Staff Space) and per-device revocation UI; the service has `removeMember`/`revokeDevice`.
 - Install hint is basic (Chrome prompt, iOS instructions).
+
+## D-012 Roster and timeline (phase 4)
+- **Pure logic is separate and unit-tested:** `ui/src/lib/{time,format,timeline}.ts` (day ranges built from calendar fields so DST days
+  are right, US 12-hour formats, card text, filters, ordering, per-child status, since-chips).
+- **Status:** a nap with no end means napping; otherwise the later of check-in/check-out decides; provider care logged with no
+  check-in still means "here". A parent's home note does not.
+- **Since-chips** (🍼 feeding, 🧷 diaper) show only for children who are here, ignore entries in the future, and turn amber at
+  `sinceThresholdMinutes` (Staff settings, default 180). The Settings screen does not expose it yet.
+- **Timeline visual** (line, dots, boxes) is plain CSS and is verified by geometry in `tests/e2e/timeline.spec.ts` at 375px in
+  both themes (line 2px and full-height, dot 12px and centred on the line and on the header row, boxes to the right, no sideways
+  scroll). Screenshots are written to `test-results/shots/` for eyeballing. Pixel-diff baselines are not used.
+- **Roster** is the child grid (Here now / All children; defaults to Here now when anyone is here). The old family list moved to a
+  **Families** screen (👪). Parents see their child's timeline directly, with a sibling switcher and an "All" view.
+- **Day navigation:** arrows, swipe (horizontal, vertical scroll untouched), tapping the date opens the native date picker, and a
+  Today button. Order (newest/oldest first) is device-local and remembered.
+- **Not in this phase** (by the build plan): add flow, nap timers and the "Asleep now" banner (5), reactions and threads (6),
+  photos in cards (7: cards show a photo count), daily summary and exports (9), the sync status pill (10).
+- **Test data** is seeded through the dev build's `window.__syncHost` (`npm run e2e` builds the dev build first). Tests that rely
+  on seeded entries being in the past skip before 6 AM local time.
 
 ## Open items (SPEC 13) — assumptions so far
 1. Names/colors: defaults from spec (`APP_NAME`, `DAYCARE_NAME`, accent `#14B8A6`).

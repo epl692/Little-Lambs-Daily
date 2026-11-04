@@ -66,7 +66,7 @@ export interface Data {
   update(id: string, fields: Record<string, any>): Promise<Obj>;
   remove(id: string): Promise<void>;
   get(id: string): Promise<Obj | undefined>;
-  query(spec: { type: string; space?: string }): Query;
+  query(spec: { type: string; space?: string; where?: (o: Obj) => boolean }): Query;
 }
 
 /** Provided by the app (modules/daycare/bridge.ts). */

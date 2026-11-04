@@ -8,11 +8,23 @@ export type View =
   | { name: 'linkThisDevice' }
   | { name: 'home' }
   | { name: 'addFamily' }
+  | { name: 'families' }
+  | { name: 'timeline'; child: string }
   | { name: 'family'; space: string }
   | { name: 'invite'; space: string }
   | { name: 'settings' }
   | { name: 'staffInvite' }
   | { name: 'showLinkCode' };
+
+export interface Child {
+  id: string;
+  space: string;
+  name: string;
+  firstName: string;
+  allergies: string;
+  color?: string;
+  birthDate?: string;
+}
 
 export interface Approval {
   id: number;
@@ -35,6 +47,10 @@ export function createApp(api: UiApi) {
     view: { name: 'welcome' } as View,
     history: [] as View[],
     approvals: [] as Approval[],
+    children: [] as Child[],
+    now: Date.now(),
+    /** Minutes before a since-last-bottle/diaper chip turns amber (settings, default 3h). */
+    sinceThresholdMinutes: 180,
     daycareName: api.daycareName,
     appName: api.appName,
   });
@@ -47,6 +63,7 @@ export function createApp(api: UiApi) {
     const s = await svc.settings().catch(() => undefined);
     if (s?.daycareName) app.daycareName = s.daycareName;
     if (s?.appName) app.appName = s.appName;
+    if (s?.sinceThresholdMinutes) app.sinceThresholdMinutes = s.sinceThresholdMinutes;
     if (st.mode === 'provider' && !stopSync) stopSync = svc.startStaffSync();
     return st;
   }
@@ -110,6 +127,23 @@ export function createApp(api: UiApi) {
     app.loading = false;
   }
 
+  // Every child on this device (a parent's own, a provider's all), live; and a clock so timers and since-chips move.
+  const stopKids = api.data.query({ type: 'daycare.child' }).subscribe((rows) => {
+    app.children = rows
+      .filter((r) => r.fields.active !== false)
+      .map((r) => ({
+        id: r.id,
+        space: r.space,
+        firstName: String(r.fields.firstName ?? ''),
+        name: String(r.fields.nickname || r.fields.firstName || ''),
+        allergies: String(r.fields.allergies ?? ''),
+        color: r.fields.color as string | undefined,
+        birthDate: r.fields.birthDate as string | undefined,
+      }))
+      .sort((x, y) => x.name.localeCompare(y.name));
+  });
+  const tick = setInterval(() => (app.now = Date.now()), 15_000);
+
   // Spaces appear and disappear as joins and handoffs sync in: keep the screens' view of them current.
   const offEvents = admin.on((e) => {
     if (e.kind === 'member:changed') void refresh();
@@ -117,6 +151,8 @@ export function createApp(api: UiApi) {
 
   function stop() {
     stopSync?.();
+    stopKids();
+    clearInterval(tick);
     offEvents();
     removeApprover();
   }

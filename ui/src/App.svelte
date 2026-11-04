@@ -3,6 +3,8 @@
   import { createApp } from './lib/app.svelte';
   import type { UiApi } from './lib/types';
   import AddFamily from './screens/AddFamily.svelte';
+  import ChildTimeline from './screens/ChildTimeline.svelte';
+  import Families from './screens/Families.svelte';
   import Family from './screens/Family.svelte';
   import Invite from './screens/Invite.svelte';
   import Join from './screens/Join.svelte';
@@ -44,6 +46,10 @@
   {#if mode === 'provider'}<Roster {ctx} />{:else if mode === 'parent'}<ParentHome {ctx} />{:else}<Welcome {ctx} />{/if}
 {:else if view.name === 'addFamily'}
   <AddFamily {ctx} />
+{:else if view.name === 'families'}
+  <Families {ctx} />
+{:else if view.name === 'timeline'}
+  <ChildTimeline {ctx} child={view.child} />
 {:else if view.name === 'family'}
   <Family {ctx} space={view.space} />
 {:else if view.name === 'invite'}

@@ -81,7 +81,10 @@ test('a parent only ever sees their own family', async ({ browser }) => {
     await provider.getByTestId('child-name').fill(kid!);
     await provider.getByTestId('create-family').click();
     await expect(provider.getByTestId('child-row')).toHaveText(kid!);
-    if (fam === 'Lee') await provider.getByRole('button', { name: /back/i }).click();
+    if (fam === 'Lee') {
+      await provider.getByRole('button', { name: /back/i }).click(); // roster
+      await provider.getByTestId('manage-families').click();
+    }
   }
   // invite for the Okafor family (currently open)
   await provider.getByTestId('invite-parent').click();
