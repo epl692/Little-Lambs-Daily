@@ -23,13 +23,19 @@ npm install
 | `npm test` | Unit and contract tests |
 | `npm run typecheck` / `npm run lint` | Types (TS + Svelte) and ESLint |
 | `npm run relay` | Local relay at ws://localhost:8787 (`BLOB_DIR=./blobs` for photos) |
-| `npm run e2e` | Playwright (once e2e tests exist; run `npx playwright install chromium` first) |
+| `npm run e2e` | Two-browser Playwright tests against the built app and a local relay (run `npm run build` and `npx playwright install chromium` first) |
 
 ## Layout
 
 See SPEC.md section 10. `modules/daycare` is the framework module, `ui/` the Svelte app mounted by its root view,
 `infra/identity` the invite provider, `relay/` the self-hosted relay (Docker, for Unraid).
 
+## Production setup
+
+- Set `RELAY_URL` in `modules/daycare/constants.ts` (e.g. `wss://relay.example.com`) before `npm run build`; the build lists it in the page security policy.
+- Serve `dist/` over HTTPS. Run the relay with `docker compose -f relay/docker-compose.yml up -d --build` behind a TLS reverse proxy.
+- `framework/` currently points at an unmerged upstream branch (see DECISIONS.md D-009).
+
 ## Status
 
-Phases 1 (scaffold) and 2 (data layer + authz validator) done. Next: phase 3 (onboarding and pairing).
+Phases 1 to 3 done: scaffold, data layer and authz, onboarding and pairing (provider setup, families, QR invites with SAS approval, second provider, device linking). Next: phase 4 (roster and timeline).

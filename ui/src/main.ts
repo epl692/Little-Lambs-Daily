@@ -2,13 +2,9 @@ import { mount as svelteMount, unmount } from 'svelte';
 import App from './App.svelte';
 import themeCss from './styles/theme.css?inline';
 import { apply, followSystem, getChoice } from './lib/theme';
+import type { UiApi } from './lib/types';
 
-/** What the daycare module hands the UI. Grows each phase; the UI never imports framework packages. */
-export interface UiApi {
-  appName: string;
-  daycareName: string;
-  [capability: string]: unknown;
-}
+export type { UiApi } from './lib/types';
 
 export function mount(target: HTMLElement, api: UiApi): () => void {
   const style = document.createElement('style');

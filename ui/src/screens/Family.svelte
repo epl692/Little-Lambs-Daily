@@ -1,0 +1,96 @@
+<script lang="ts">
+  import { onMount } from 'svelte';
+  import type { App } from '../lib/app.svelte';
+  import { familyNameOf } from '../lib/service';
+  import type { MemberInfo, Obj } from '../lib/types';
+  import Top from '../components/Top.svelte';
+
+  let { ctx, space }: { ctx: App; space: string } = $props();
+  const info = $derived(ctx.app.st?.families.find((f) => f.id === space));
+  let kids = $state<Obj[]>([]);
+  let members = $state<MemberInfo[]>([]);
+  let newKid = $state('');
+  let error = $state('');
+  // svelte-ignore state_referenced_locally
+  let pending = $state(ctx.svc.pendingInvites(space));
+  // svelte-ignore state_referenced_locally
+  const me = ctx.api.spaces.admin?.session()?.user;
+
+  async function loadMembers() {
+    members = await ctx.svc.members(space);
+  }
+  onMount(() => {
+    void loadMembers();
+    const off = ctx.api.spaces.admin!.on((e) => {
+      if (e.kind === 'member:changed') void loadMembers();
+    });
+    const sub = ctx.api.data.query({ type: 'daycare.child', space }).subscribe((rows) => (kids = rows.filter((r) => r.fields.active !== false)));
+    return () => {
+      off();
+      sub();
+    };
+  });
+
+  async function addKid(e: Event) {
+    e.preventDefault();
+    error = '';
+    try {
+      await ctx.svc.addChild(space, newKid);
+      newKid = '';
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Could not add the child.';
+    }
+  }
+  async function cancelInvite(id: string) {
+    await ctx.svc.revokeInvite(space, id);
+    pending = ctx.svc.pendingInvites(space);
+  }
+  async function remove(m: MemberInfo) {
+    if (!confirm(`Remove ${m.displayName ?? 'this person'} from this family?`)) return;
+    await ctx.svc.removeMember(space, m.user);
+    await loadMembers();
+  }
+  const when = (ms: number) => new Date(ms).toLocaleString('en-US', { weekday: 'short', hour: 'numeric', minute: '2-digit' });
+  const parents = $derived(members.filter((m) => m.role === 'editor'));
+</script>
+
+<main class="page stack">
+  <Top {ctx} title={info ? `${familyNameOf(info)} family` : 'Family'} />
+
+  <section class="card stack" aria-labelledby="kids-h">
+    <h2 id="kids-h">Children</h2>
+    <ul class="stack" style="list-style: none; padding: 0; margin: 0">
+      {#each kids as k (k.id)}
+        <li class="row"><span class="avatar" aria-hidden="true">{String(k.fields.firstName ?? '?').slice(0, 1).toUpperCase()}</span><span data-testid="child-row">{k.fields.firstName}</span></li>
+      {:else}
+        <li class="muted">No children yet</li>
+      {/each}
+    </ul>
+    <form class="row" onsubmit={addKid}>
+      <input type="text" class="grow" bind:value={newKid} placeholder="Add another child" aria-label="Child’s first name" />
+      <button type="submit" class="btn" disabled={!newKid.trim()}>Add</button>
+    </form>
+    {#if error}<p class="err" role="alert">{error}</p>{/if}
+  </section>
+
+  <section class="card stack" aria-labelledby="par-h">
+    <h2 id="par-h">Parents and family</h2>
+    <ul class="stack" style="list-style: none; padding: 0; margin: 0">
+      {#each parents as m (m.user)}
+        <li class="row">
+          <span class="grow" data-testid="parent-row">{m.displayName ?? 'Parent'}</span>
+          {#if m.user !== me}<button type="button" class="btn ghost danger" onclick={() => remove(m)}>Remove</button>{/if}
+        </li>
+      {:else}
+        <li class="muted">No one has joined yet</li>
+      {/each}
+    </ul>
+    {#each pending as inv (inv.inviteId)}
+      <div class="row small muted" data-testid="pending-invite">
+        <span class="grow">Invite waiting · expires {when(inv.expiresAt)}</span>
+        <button type="button" class="btn ghost danger" onclick={() => cancelInvite(inv.inviteId)}>Cancel</button>
+      </div>
+    {/each}
+    <button type="button" class="btn primary big" data-testid="invite-parent" onclick={() => ctx.go({ name: 'invite', space })}>Invite a parent</button>
+  </section>
+</main>

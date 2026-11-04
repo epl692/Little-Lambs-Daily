@@ -56,6 +56,43 @@ All seven types are in `modules/daycare/schema/`. `objectCheck` on `entry` requi
 - The photo kind's positive case needs a real blob reference, so it is exercised with the attachments work in phase 7.
 - Blobs are switched on now (500 MB budget) because the schemas have blob fields; the hook is shared with the validator.
 
+## D-009 Framework gap: join and link approval (SPEC 4.3, 4.5) — upstream PR
+`startApp` opened the secure core without `approveJoin`/`approveLink`, whose default is to refuse, so invites with
+`approval: 'required'` and device links could never complete in an app-build app. Fix: two optional `AppConfig` fields
+passed through to `openSecureCore` (about 10 lines + a test). Raised as
+[epl692/Sync-PWA-Framework#4](https://github.com/epl692/Sync-PWA-Framework/pull/4); `framework/` is pinned to that
+branch's commit (`4200397`) until it merges. **After it merges, move the submodule pin to master.**
+The app answers through `modules/daycare/bridge.ts`: the UI registers an approver (the SAS dialog); with none mounted the
+answer is "no".
+
+## D-010 How the UI reaches Spaces
+The module declares `access: { spaces: { read: 'any', write: 'any', manage: true } }`, which puts the full Spaces API on
+`ctx.spaces.admin`. The UI sees it through structural types (`ui/src/lib/types.ts`), never framework imports. QR drawing
+(`qrToSvg`, from identity-invite) reaches the UI via the bridge, shown as an `<img>` data URL, not `{@html}`.
+All onboarding logic is `ui/src/lib/service.ts`, tested on real encrypted nodes.
+
+## D-011 Onboarding design choices
+- **Which Space is which:** by name suffix (" Staff", " Family"). A device is a provider when it owns a Staff Space, a
+  parent when it only holds family Spaces. Only affects that device's own UI; authority comes from the Space itself.
+- **Membership lags the join:** `spaces.list()` omits a Space until the device has synced its own join event, so the join
+  screen waits (up to 30s) for it before showing a home screen.
+- **Second provider:** joins the Staff Space as Owner (always needs approval). Access to families is by single-use
+  `approval: 'auto'` Owner invites left in the Staff Space as `daycare.staffInvite` (deterministic id per provider+family, so
+  two devices converge) and accepted automatically. The inviting device must be online; the receiver retries every 30s and a
+  fresh invite is issued once one expires. `staffInvite` gained `expiresAt` for this.
+- **Relationship:** stored in the display name, "Erin (Mom)", so providers see it in member lists.
+- **Invite links:** `<page URL>#/join/<payload>`. On open the hash is removed from the address bar and kept in memory.
+- **Tracking my invites:** the framework can't list invites, so each device remembers the ones it made (localStorage) to
+  show and cancel them.
+- **Relay URL** is a build constant (`RELAY_URL` in `constants.ts`) because the CSP `connect-src` must list it.
+  A runtime override in Settings is deferred; it could only work for origins the build already allows.
+
+## Deferred from phase 3
+- WebRTC peer-to-peer fallback (its pairing is a manual code exchange; needs its own UI) and in-app QR scanning
+  (phone cameras open the link directly; pasting works today).
+- Removing a provider (Staff Space) and per-device revocation UI; the service has `removeMember`/`revokeDevice`.
+- Install hint is basic (Chrome prompt, iOS instructions).
+
 ## Open items (SPEC 13) — assumptions so far
 1. Names/colors: defaults from spec (`APP_NAME`, `DAYCARE_NAME`, accent `#14B8A6`).
 2. Since-last threshold: 3h.

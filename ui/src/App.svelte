@@ -1,44 +1,59 @@
 <script lang="ts">
-  import { getChoice, setChoice, type ThemeChoice } from './lib/theme';
-  import type { UiApi } from './main';
+  import { onMount } from 'svelte';
+  import { createApp } from './lib/app.svelte';
+  import type { UiApi } from './lib/types';
+  import AddFamily from './screens/AddFamily.svelte';
+  import Family from './screens/Family.svelte';
+  import Invite from './screens/Invite.svelte';
+  import Join from './screens/Join.svelte';
+  import LinkThisDevice from './screens/LinkThisDevice.svelte';
+  import ParentHome from './screens/ParentHome.svelte';
+  import ProviderSetup from './screens/ProviderSetup.svelte';
+  import Roster from './screens/Roster.svelte';
+  import Settings from './screens/Settings.svelte';
+  import ShowLinkCode from './screens/ShowLinkCode.svelte';
+  import Welcome from './screens/Welcome.svelte';
+  import ApprovalDialog from './components/ApprovalDialog.svelte';
 
   let { api }: { api: UiApi } = $props();
-  let choice = $state<ThemeChoice>(getChoice());
-  const options: { value: ThemeChoice; label: string }[] = [
-    { value: 'system', label: 'System' },
-    { value: 'light', label: 'Light' },
-    { value: 'dark', label: 'Dark' },
-  ];
-  function pick(v: ThemeChoice) {
-    choice = v;
-    setChoice(v);
-  }
+  // svelte-ignore state_referenced_locally
+  const ctx = createApp(api);
+  let fatal = $state('');
+
+  onMount(() => {
+    ctx.start().catch((e) => (fatal = e instanceof Error ? e.message : String(e)));
+    return () => ctx.stop();
+  });
+  const view = $derived(ctx.app.view);
+  const mode = $derived(ctx.app.st?.mode);
 </script>
 
-<main>
-  <header>
-    <h1>{api.appName}</h1>
-    <p class="muted">{api.daycareName}</p>
-  </header>
-  <section class="card" aria-labelledby="theme-h">
-    <h2 id="theme-h">Theme</h2>
-    <div class="seg" role="radiogroup" aria-label="Theme">
-      {#each options as o (o.value)}
-        <button type="button" role="radio" aria-checked={choice === o.value} class:on={choice === o.value} onclick={() => pick(o.value)}>{o.label}</button>
-      {/each}
-    </div>
-  </section>
-  <p class="muted">Scaffold is running. Next: data layer (phase 2).</p>
-</main>
+{#if fatal}
+  <main class="page"><p class="err" role="alert">Could not start: {fatal}</p></main>
+{:else if ctx.app.loading}
+  <main class="page"><p class="muted" role="status">Loading…</p></main>
+{:else if view.name === 'welcome'}
+  <Welcome {ctx} />
+{:else if view.name === 'providerSetup'}
+  <ProviderSetup {ctx} />
+{:else if view.name === 'join'}
+  <Join {ctx} link={view.link ?? ''} />
+{:else if view.name === 'linkThisDevice'}
+  <LinkThisDevice {ctx} />
+{:else if view.name === 'home'}
+  {#if mode === 'provider'}<Roster {ctx} />{:else if mode === 'parent'}<ParentHome {ctx} />{:else}<Welcome {ctx} />{/if}
+{:else if view.name === 'addFamily'}
+  <AddFamily {ctx} />
+{:else if view.name === 'family'}
+  <Family {ctx} space={view.space} />
+{:else if view.name === 'invite'}
+  <Invite {ctx} mode="family" space={view.space} />
+{:else if view.name === 'staffInvite'}
+  <Invite {ctx} mode="staff" />
+{:else if view.name === 'settings'}
+  <Settings {ctx} />
+{:else if view.name === 'showLinkCode'}
+  <ShowLinkCode {ctx} />
+{/if}
 
-<style>
-  main { max-width: 640px; margin: 0 auto; padding: 24px 16px; }
-  h1 { margin: 0; font-size: 1.5rem; }
-  h2 { margin: 0 0 12px; font-size: 1rem; }
-  .muted { color: var(--muted); }
-  .card { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid var(--line); padding: 16px; margin: 16px 0; }
-  .seg { display: flex; gap: 8px; }
-  button { flex: 1; min-height: 48px; border-radius: 12px; border: 1px solid var(--line); background: transparent; color: var(--text); font: inherit; cursor: pointer; }
-  button.on { background: var(--accent); border-color: var(--accent); color: #04211e; font-weight: 600; }
-  button:focus-visible { outline: 3px solid var(--accent-ink); outline-offset: 2px; }
-</style>
+<ApprovalDialog {ctx} />

@@ -45,6 +45,8 @@ export const staffInvite: ObjectTypeDef = {
         forUser: { type: 'string', required: true },
         spaceId: { type: 'string', required: true },
         artifact: { type: 'string', required: true },
+        /** When the invite inside `artifact` stops working, so a provider device knows to issue a fresh one. */
+        expiresAt: { type: 'timestamp' },
         consumed: { type: 'boolean', default: false },
       },
     },
