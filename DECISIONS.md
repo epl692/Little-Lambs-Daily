@@ -137,6 +137,21 @@ All onboarding logic is `ui/src/lib/service.ts`, tested on real encrypted nodes.
 - **Deferred:** Photo tile (phase 7), "Edit for all in batch", limiting a parent's edit of their own check-in time to the same day
   (open item 3 is "yes" for now with no day limit), focus trapping in the sheet beyond moving focus into it.
 
+## D-014 Reactions and threads (phase 6)
+- **Engine vs UI:** `ui/src/lib/threads.ts` (toggle, reply, edit, delete, grouping) is tested on three real encrypted nodes
+  (`tests/contract/threads.integration.test.ts`); `ReactionBar`, `Thread` and `WhoReacted` are layout only.
+- **Reaction ids** are the deterministic string `reaction:<entry>:<user>:<emoji>` (not a hash: it is already unique and readable).
+- **`daycare.reaction` and `daycare.comment` now have `merge.editResurrects`.** A create on a deleted id does not bring it back
+  (found by the test), so tapping the same emoji again after removing it only works if the type resurrects; comments need it for
+  "Delete, then Undo". Same consequence as D-013 for entries.
+- **`daycare.comment` gained a required `at` timestamp** (SPEC 5.3 lists none). Replies need a time to show and to sort by.
+- **Who reacted:** long-press or right-click a pill, or the ⓘ button (keyboard users cannot long-press). Lists every emoji with
+  names, "You" first. Names come from the Space's member list ("Erin (Mom)").
+- **Permissions** (already in the authz validator, now exercised): anyone may react and reply; a parent edits or deletes only their
+  own reply or reaction; a provider can delete (not edit) anyone's reply. Posting a reply as someone else's role is rejected.
+- **Reply undo:** sending shows an Undo toast (removes the reply); deleting shows one that restores it.
+- **Deferred:** a "Reply" count on collapsed cards is shown, but notifications of new replies are not (no push in this app).
+
 ## Open items (SPEC 13) — assumptions so far
 1. Names/colors: defaults from spec (`APP_NAME`, `DAYCARE_NAME`, accent `#14B8A6`).
 2. Since-last threshold: 3h.

@@ -38,4 +38,4 @@ See SPEC.md section 10. `modules/daycare` is the framework module, `ui/` the Sve
 
 ## Status
 
-Phases 1 to 5 done: scaffold, data layer and authz, onboarding and pairing, roster and timeline, and the add flow (check-in/out, naps with timers, bottles, snacks, meals, diapers, notes, from-home, batch logging, undo, edit and delete). Next: phase 6 (reactions and threads).
+Phases 1 to 6 done: scaffold, data layer and authz, onboarding and pairing, roster and timeline, the add flow (check-in/out, naps with timers, bottles, snacks, meals, diapers, notes, from-home, batch logging, undo, edit and delete), and reactions and threaded replies. Next: phase 7 (photos).

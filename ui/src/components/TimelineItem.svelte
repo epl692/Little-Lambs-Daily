@@ -3,6 +3,8 @@
   import type { App } from '../lib/app.svelte';
   import { fmtDateLong, HOUR } from '../lib/time';
   import EntryMenu from './EntryMenu.svelte';
+  import ReactionBar from './ReactionBar.svelte';
+  import Thread from './Thread.svelte';
 
   let { ctx, entry, now, childName = '' }: { ctx: App; entry: Entry; now: number; childName?: string } = $props();
   // Providers may change anything (moderation); a parent only their own entries (the authz validator enforces the same).
@@ -40,6 +42,8 @@
     {#if f.text}<p class="txt">{f.text}</p>{/if}
     {#if open && canWake}<button type="button" class="btn wake" data-testid="wake" onclick={wake}>☀️ Woke up</button>{/if}
     {#if long}<p class="hint">Still sleeping? This nap is over 3 hours.</p>{/if}
+    <ReactionBar {ctx} {entry} />
+    <Thread {ctx} {entry} />
     <footer class="meta">
       <span>{authorLine(entry)}{#if f.editedAt} · edited{/if}</span>
       {#if canChange}<EntryMenu {ctx} {entry} />{/if}

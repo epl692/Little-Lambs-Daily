@@ -27,7 +27,7 @@ moduleContract({
       { child: kid, kind: 'familyNote', at, text: 'Teething today', ...by, createdByRole: 'parent' },
       { child: kid, kind: 'home', at, homeKind: 'slept', mood: 'ok', text: 'Slept 10 hours', ...by, createdByRole: 'parent' },
     ],
-    'daycare.comment': [{ target: 'entry-1', text: 'Thank you!', createdBy: 'user-2', createdByName: 'Mom', createdByRole: 'parent' }],
+    'daycare.comment': [{ target: 'entry-1', text: 'Thank you!', at: 1_700_000_000_000, createdBy: 'user-2', createdByName: 'Mom', createdByRole: 'parent' }],
     'daycare.reaction': [{ target: 'entry-1', emoji: 'love', createdBy: 'user-2' }],
     'daycare.settings': [{ daycareName: "Bri's Little Lambs", appName: 'Little Lambs Daily', requireApproval: true, defaultInviteHours: 24, sinceThresholdMinutes: 180 }],
     'daycare.familyIndex': [{ spaceId: 'space-1', familyName: 'Lee' }],

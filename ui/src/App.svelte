@@ -18,6 +18,7 @@
   import AddSheet from './components/AddSheet.svelte';
   import ApprovalDialog from './components/ApprovalDialog.svelte';
   import Snackbar from './components/Snackbar.svelte';
+  import WhoReacted from './components/WhoReacted.svelte';
 
   let { api }: { api: UiApi } = $props();
   // svelte-ignore state_referenced_locally
@@ -66,6 +67,9 @@
 
 {#if ctx.app.sheet}
   {#key ctx.app.sheet}<AddSheet {ctx} sheet={ctx.app.sheet} />{/key}
+{/if}
+{#if ctx.app.whoReacted}
+  <WhoReacted {ctx} entry={ctx.app.whoReacted.entry} space={ctx.app.whoReacted.space} />
 {/if}
 <Snackbar {ctx} />
 <ApprovalDialog {ctx} />

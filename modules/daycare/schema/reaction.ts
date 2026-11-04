@@ -5,6 +5,9 @@ import { EMOJI } from './enums';
 export const reaction: ObjectTypeDef = {
   name: 'reaction',
   label: 'Reaction',
+  // The id is deterministic, so tapping the same emoji again after removing it re-creates the same object: that write
+  // has to bring it back from the tombstone.
+  merge: { editResurrects: true },
   versions: [
     {
       version: 1,

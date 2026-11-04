@@ -1,8 +1,9 @@
 import type { Entry } from './format';
 import { createLogger, type Actor, type Logger } from './log';
 import { createService, type AppState, type Service } from './service';
+import { createThreads, groupReactions, groupReplies, type ReactionPill, type Reply, type Threads } from './threads';
 import { dayRange } from './time';
-import type { JoinRequest, UiApi } from './types';
+import type { Admin, JoinRequest, UiApi } from './types';
 
 /** The add sheet: open for these children (skipping the "who" step), or editing an existing entry. */
 export interface Sheet {
@@ -51,8 +52,9 @@ export interface Approval {
 
 /** One place for the UI's state. Screens read `app.st`, `app.view`, `app.approvals` and call `app.go(...)`. */
 export function createApp(api: UiApi) {
-  const admin = api.spaces.admin;
-  if (!admin) throw new Error('The daycare module needs access.spaces.manage');
+  const found = api.spaces.admin;
+  if (!found) throw new Error('The daycare module needs access.spaces.manage');
+  const admin: Admin = found; // keeps its type inside hoisted function declarations
   const svc: Service = createService({ admin, data: api.data });
 
   const app = $state({
@@ -66,6 +68,11 @@ export function createApp(api: UiApi) {
     todayEntries: [] as Entry[],
     /** Naps with no end yet, any day (live): drives the "Asleep now" banner. */
     openNaps: [] as Entry[],
+    /** Reaction pills and thread replies by entry id (live, every entry on this device). */
+    reactions: {} as Record<string, ReactionPill[]>,
+    replies: {} as Record<string, Reply[]>,
+    /** The "who reacted" sheet. */
+    whoReacted: undefined as { entry: string; space: string } | undefined,
     sheet: undefined as Sheet | undefined,
     toast: undefined as Toast | undefined,
     now: Date.now(),
@@ -162,6 +169,9 @@ export function createApp(api: UiApi) {
       }))
       .sort((x, y) => x.name.localeCompare(y.name));
   });
+  // Reactions and replies, grouped by the entry they belong to (live).
+  const stopReactions = api.data.query({ type: 'daycare.reaction' }).subscribe((rows) => (app.reactions = Object.fromEntries(groupReactions(rows, me()))));
+  const stopReplies = api.data.query({ type: 'daycare.comment' }).subscribe((rows) => (app.replies = Object.fromEntries(groupReplies(rows))));
   const stopNaps = api.data
     .query({ type: 'daycare.entry', where: (o) => o.fields.kind === 'nap' && typeof o.fields.endAt !== 'number' })
     .subscribe((rows) => (app.openNaps = rows));
@@ -190,8 +200,23 @@ export function createApp(api: UiApi) {
     return { user: s?.user ?? '', name: s?.displayName ?? 'Someone', role: app.st?.mode === 'provider' ? 'provider' : 'parent' };
   };
   const logger: Logger = createLogger({ data: api.data, actor });
+  const threads: Threads = createThreads({ data: api.data, actor });
   const role = () => actor().role;
-  const me = () => admin.session()?.user ?? '';
+  function me() {
+    return admin.session()?.user ?? '';
+  }
+
+  // Names for the "who reacted" sheet, per Space (device-local cache; members rarely change).
+  const memberNames = new Map<string, Map<string, string>>();
+  async function nameOf(space: string, user: string): Promise<string> {
+    if (user === me()) return 'You';
+    let m = memberNames.get(space);
+    if (!m || !m.has(user)) {
+      m = new Map((await admin.members(space).catch(() => [])).map((x) => [x.user, x.displayName ?? 'Someone']));
+      memberNames.set(space, m);
+    }
+    return m.get(user) ?? 'Someone';
+  }
 
   let toastId = 0;
   let toastTimer: ReturnType<typeof setTimeout> | undefined;
@@ -221,6 +246,8 @@ export function createApp(api: UiApi) {
     stopSync?.();
     stopKids();
     stopNaps();
+    stopReactions();
+    stopReplies();
     stopToday?.();
     clearInterval(tick);
     clearTimeout(toastTimer);
@@ -228,7 +255,7 @@ export function createApp(api: UiApi) {
     removeApprover();
   }
 
-  return { app, svc, api, logger, role, me, refresh, go, back, home, start, stop, showToast, dismissToast, openAdd, closeAdd, buzz };
+  return { app, svc, api, logger, threads, nameOf, role, me, refresh, go, back, home, start, stop, showToast, dismissToast, openAdd, closeAdd, buzz };
 }
 
 export type App = ReturnType<typeof createApp>;

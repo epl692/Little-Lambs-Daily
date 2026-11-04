@@ -39,7 +39,8 @@ describe('daycare.entry rules', () => {
   it('requires authorship fields on everything', () => {
     bad('entry', { child: 'c1', kind: 'nap', at: 1 });
     bad('comment', { target: 'e1', text: 'hi' });
-    bad('comment', { target: 'e1', text: '  ', ...by });
+    bad('comment', { target: 'e1', text: '  ', at: 1, ...by });
+    bad('comment', { target: 'e1', text: 'hi', ...by }); // needs a time
     bad('reaction', { target: 'e1', emoji: 'angry-face', createdBy: 'u1' });
   });
 });
