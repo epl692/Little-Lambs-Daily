@@ -184,6 +184,26 @@ All onboarding logic is `ui/src/lib/service.ts`, tested on real encrypted nodes.
 - **Deferred:** changing your own display name (the framework has no rename call), removing a parent or revoking a device from a
   provider screen, notifications for new items.
 
+## D-017 Reports and exports (phase 9)
+- **All on-device**, from local data, so it works offline. Pure logic in `ui/src/lib/reports.ts` (unit-tested); screens are `DaySummary`
+  (a card on the timeline) and `Reports` (Settings → Reports and exports).
+- **Daily summary:** arrival/departure and by whom, nap total with each nap (an open nap counts up to now), bottles and oz finished,
+  food, wet/soiled diapers ("both" counts as each), photo count, notes. One card per child. Pinned at the top of past days that
+  have entries, a button for today. **Deviation:** Share sends *text* (Web Share API, else a `.txt` download); the spec says
+  image/PDF. A PDF comes from "Print / PDF" (the browser's print dialog with only the card visible). An image is not built.
+- **Attendance** (provider): date range + Everyone / whole family / one child. One row per child per day: the first check-in and the last
+  check-out after it (a double-tapped check-in does not create a second row). A day with a check-in and no check-out, or the reverse, is
+  flagged (text under the child's name, not just colour). CSV has the spec columns plus a trailing `flag`; it starts with a BOM so Excel reads
+  accents, and any text cell starting with `= + - @` gets a leading `'` so a typed name can never run as a spreadsheet formula.
+  Printing gives one page per week (Monday start) with a signature line.
+- **Backup ZIP** (everyone; a parent only ever has their family's data): `data.json` (`schemaVersion: 1`, spaces, every child, entry, reply
+  and reaction) and, if ticked, `photos/<child>/<date>_<time>_<n>_<name>` (full-size, fetched first if not on the device, with progress).
+  A photo that cannot be fetched is listed under `missingPhotos` instead of failing the export. Staff invites (which hold join
+  links) and settings are never exported. Folder names are sanitised (a child named `..` cannot escape its folder).
+- **After Leave family** the app only shows families the device still belongs to (the framework keeps what was synced and has no purge call).
+- **Deferred:** daily summary as an image; import/restore (out of scope); attendance by a day's hours worked in a facility timezone
+  (all times are the device's local time).
+
 ## Open items (SPEC 13) — assumptions so far
 1. Names/colors: defaults from spec (`APP_NAME`, `DAYCARE_NAME`, accent `#14B8A6`).
 2. Since-last threshold: 3h.

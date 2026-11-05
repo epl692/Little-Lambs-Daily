@@ -4,6 +4,7 @@
   import { applyFilter, sortEntries, withHourBreaks, type Order } from '../lib/timeline';
   import { dayRange, isSameDay, shiftDay } from '../lib/time';
   import DayNav from './DayNav.svelte';
+  import DaySummary from './DaySummary.svelte';
   import EmptyArt from './EmptyArt.svelte';
   import FilterChips from './FilterChips.svelte';
   import TimelineItem from './TimelineItem.svelte';
@@ -31,6 +32,11 @@
 
   const rows = $derived(withHourBreaks(sortEntries(applyFilter(entries, filter), order)));
   const today = $derived(isSameDay(day, ctx.app.now));
+  // SPEC 6.6/7.1: pinned at the top of past days, on request for today. One card per child.
+  let showSummary = $state(false);
+  const kidsInView = $derived(ctx.app.children.filter((c) => ids.has(c.id)));
+  const summaries = $derived(kidsInView.map((c) => ({ id: c.id, name: c.name, entries: entries.filter((e) => e.fields.child === c.id) })).filter((x) => x.entries.length > 0));
+  const summaryOpen = $derived(!today || showSummary);
 
   function flip() {
     order = order === 'newest' ? 'oldest' : 'newest';
@@ -59,6 +65,16 @@
   </button>
 </div>
 
+{#if today && summaries.length > 0}
+  <div class="row small" style="margin: -4px 0 10px">
+    <button type="button" class="btn ghost" data-testid="summary-toggle" aria-expanded={showSummary} onclick={() => (showSummary = !showSummary)}>{showSummary ? 'Hide daily summary' : 'Daily summary'}</button>
+  </div>
+{/if}
+{#if summaryOpen}
+  <div class="stack" style="margin-bottom: 12px">
+    {#each summaries as sm (sm.id)}<DaySummary {ctx} entries={sm.entries} name={sm.name} {day} />{/each}
+  </div>
+{/if}
 <div class="list" role="region" aria-label="Timeline for {today ? 'today' : 'the selected day'}" onpointerdown={down} onpointerup={up} onpointercancel={() => (start = undefined)}>
   {#if rows.length === 0}
     <EmptyArt text={filter !== 'all' ? 'Nothing here for this filter.' : today ? 'Nothing logged yet today.' : 'Nothing was logged on this day.'} />

@@ -68,6 +68,11 @@
     <button type="button" class="btn" data-testid="link-another" onclick={() => ctx.go({ name: 'showLinkCode' })}>Link another device</button>
   </section>
 
+  <section class="card stack" aria-labelledby="rp-h">
+    <h2 id="rp-h">Reports and exports</h2>
+    <button type="button" class="btn" data-testid="open-reports" onclick={() => ctx.go({ name: 'reports' })}>{provider ? 'Attendance, backup' : 'Download your records'}</button>
+  </section>
+
   {#if !provider}
     <section class="card stack" aria-labelledby="lv-h">
       <h2 id="lv-h">Family</h2>

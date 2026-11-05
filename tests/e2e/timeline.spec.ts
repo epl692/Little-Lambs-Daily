@@ -158,7 +158,9 @@ test('a parent sees the same day as a timeline, with siblings and an All view', 
   // siblings: starts on "All": both children, labelled, statuses for each
   await expect(parent.getByTestId('status-card')).toHaveCount(2);
   await expect(parent.getByTestId('tl-item')).toHaveCount(12);
-  await expect(parent.getByTestId('tl-item').first()).toContainText('Ada');
+  // every card names its child in the merged view (entries logged at the same minute have no fixed order between kids)
+  await expect(parent.getByTestId('tl-item').filter({ hasText: 'Ada' })).toHaveCount(6);
+  await expect(parent.getByTestId('tl-item').filter({ hasText: 'Ben' })).toHaveCount(6);
 
   await parent.getByTestId('sibling-Ben').click();
   await expect(parent.getByTestId('tl-item')).toHaveCount(6);

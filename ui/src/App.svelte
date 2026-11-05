@@ -5,6 +5,7 @@
   import AddFamily from './screens/AddFamily.svelte';
   import ChildTimeline from './screens/ChildTimeline.svelte';
   import ChildProfile from './screens/ChildProfile.svelte';
+  import Reports from './screens/Reports.svelte';
   import Families from './screens/Families.svelte';
   import Family from './screens/Family.svelte';
   import Invite from './screens/Invite.svelte';
@@ -63,6 +64,8 @@
   <Invite {ctx} mode="family" space={view.space} />
 {:else if view.name === 'staffInvite'}
   <Invite {ctx} mode="staff" />
+{:else if view.name === 'reports'}
+  <Reports {ctx} />
 {:else if view.name === 'settings'}
   <Settings {ctx} />
 {:else if view.name === 'showLinkCode'}

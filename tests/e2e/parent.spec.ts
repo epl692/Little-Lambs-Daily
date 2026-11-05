@@ -95,4 +95,8 @@ test('a parent can leave the family and is taken back to the start', async ({ br
   });
   await parent.getByTestId('leave-family').click();
   await expect(parent.getByTestId('im-provider')).toBeVisible({ timeout: 20_000 }); // back at the welcome screen
+  // the device still holds what it synced (the framework cannot unsee it), but the app shows nothing of that family
+  await expect(parent.getByText('Ada')).toHaveCount(0);
+  await parent.reload();
+  await expect(parent.getByTestId('im-provider')).toBeVisible({ timeout: 20_000 });
 });

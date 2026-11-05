@@ -48,7 +48,7 @@
     {#if kids.some((k) => k.allergies && (sel === 'all' || k.id === sel))}
       <p class="muted small" role="note">⚠ Allergies on file: {kids.filter((k) => k.allergies && (sel === 'all' || k.id === sel)).map((k) => `${k.name} (${k.allergies})`).join('; ')}</p>
     {/if}
-    {#if sel !== 'all'}<button type="button" class="btn ghost" data-testid="open-profile" onclick={() => ctx.go({ name: 'profile', child: sel })}>{kids.find((k) => k.id === sel)?.name}’s profile ›</button>{/if}
+    {#if kids.length > 1 && sel !== 'all'}<button type="button" class="btn ghost" data-testid="open-profile" onclick={() => ctx.go({ name: 'profile', child: sel })}>{kids.find((k) => k.id === sel)?.name}’s profile ›</button>{/if}
     <Timeline {ctx} childId={sel} />
   {/if}
 

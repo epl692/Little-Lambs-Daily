@@ -9,7 +9,7 @@
     ctx.app.openNaps
       .map((n) => ({ nap: n, child: ctx.app.children.find((c) => c.id === n.fields.child) }))
       .filter((x) => x.child)
-      .sort((a, b) => Number(a.nap.fields.at) - Number(b.nap.fields.at)),
+      .sort((a, b) => Number(a.nap.fields.at) - Number(b.nap.fields.at) || a.child!.name.localeCompare(b.child!.name) || a.nap.id.localeCompare(b.nap.id)),
   );
 
   async function wake(i: number) {

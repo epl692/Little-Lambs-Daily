@@ -3,6 +3,8 @@
  * families; they are shrunk to 2048px and stripped of EXIF/GPS; a parent sees thumbnails and the full image; the other
  * family's parent never gets them.
  */
+import { readFileSync } from 'node:fs';
+import { strFromU8, unzipSync } from 'fflate';
 import { expect, test, type Page } from '@playwright/test';
 import { addFirstFamily, newPage, pairParent, setupProvider } from './helpers';
 
@@ -158,4 +160,30 @@ test('several photos: a grid, the viewer swipes between them, and one can be rem
   await expect(provider.getByTestId('photo-viewer')).toContainText('1 / 2');
   await provider.getByTestId('viewer-close').click();
   await expect(provider.getByTestId('photo-viewer')).toHaveCount(0);
+});
+
+test('the backup ZIP includes full-size photos, named by child and time', async ({ browser }) => {
+  const provider = await newPage(browser);
+  await setupProvider(provider);
+  await addFirstFamily(provider, 'Lee', 'Ada');
+  await provider.getByRole('button', { name: /back/i }).click();
+  await provider.getByTestId('show-all').click();
+  const source = await jpegWithGps(provider);
+  await provider.getByTestId('quick-add').click();
+  const [chooser] = await Promise.all([provider.waitForEvent('filechooser'), provider.getByTestId('tile-photo').click()]);
+  await chooser.setFiles([1, 2].map((n) => ({ name: `p${n}.jpg`, mimeType: 'image/jpeg', buffer: source })));
+  await expect(provider.getByTestId('photo-previews').locator('img')).toHaveCount(2, { timeout: 30_000 });
+  await provider.getByTestId('details-save').click();
+  await expect(provider.getByTestId('toast-text')).toHaveText('Posted 2 photos of Ada', { timeout: 20_000 });
+
+  await provider.getByTestId('open-settings').click();
+  await provider.getByTestId('open-reports').click();
+  await provider.getByTestId('export-photos').check();
+  const [d] = await Promise.all([provider.waitForEvent('download'), provider.getByTestId('export-all').click()]);
+  const files = unzipSync(new Uint8Array(readFileSync((await d.path())!)));
+  const photos = Object.keys(files).filter((k) => k.startsWith('photos/Ada/'));
+  expect(photos).toHaveLength(2);
+  for (const p of photos) expect([...files[p]!.slice(0, 3)]).toEqual([0xff, 0xd8, 0xff]); // a real JPEG
+  expect(JSON.parse(strFromU8(files['data.json']!)).missingPhotos).toBeUndefined();
+  await expect(provider.getByTestId('export-done')).toHaveText('Saved 2 records and 2 photos.');
 });

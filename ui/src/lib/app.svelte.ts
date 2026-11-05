@@ -4,7 +4,7 @@ import { createService, type AppState, type Service } from './service';
 import { createPhotoLogger, type PhotoLogger } from './photos';
 import { createThreads, groupReactions, groupReplies, type ReactionPill, type Reply, type Threads } from './threads';
 import { dayRange } from './time';
-import type { Admin, BlobRef, JoinRequest, UiApi } from './types';
+import type { Admin, BlobRef, JoinRequest, Obj, UiApi } from './types';
 
 /** The add sheet: open for these children (skipping the "who" step), or editing an existing entry. */
 export interface Sheet {
@@ -30,6 +30,7 @@ export type View =
   | { name: 'family'; space: string }
   | { name: 'invite'; space: string }
   | { name: 'settings' }
+  | { name: 'reports' }
   | { name: 'staffInvite' }
   | { name: 'showLinkCode' };
 
@@ -93,6 +94,7 @@ export function createApp(api: UiApi) {
   async function refresh(): Promise<AppState> {
     const st = await svc.state();
     app.st = st;
+    applyKids();
     const s = await svc.settings().catch(() => undefined);
     if (s?.daycareName) app.daycareName = s.daycareName;
     if (s?.appName) app.appName = s.appName;
@@ -161,9 +163,13 @@ export function createApp(api: UiApi) {
   }
 
   // Every child on this device (a parent's own, a provider's all), live; and a clock so timers and since-chips move.
-  const stopKids = api.data.query({ type: 'daycare.child' }).subscribe((rows) => {
-    app.children = rows
-      .filter((r) => r.fields.active !== false)
+  // A device keeps what it already synced after leaving a family (the framework cannot unsee it), so only families this device is
+  // still a member of are shown.
+  let kidRows: Obj[] = [];
+  function applyKids() {
+    const mine = app.st ? new Set(app.st.families.map((s) => s.id)) : undefined;
+    app.children = kidRows
+      .filter((r) => r.fields.active !== false && (!mine || mine.has(r.space)))
       .map((r) => ({
         id: r.id,
         space: r.space,
@@ -176,7 +182,8 @@ export function createApp(api: UiApi) {
         birthDate: r.fields.birthDate as string | undefined,
       }))
       .sort((x, y) => x.name.localeCompare(y.name));
-  });
+  }
+  const stopKids = api.data.query({ type: 'daycare.child' }).subscribe((rows) => ((kidRows = rows), applyKids()));
   // Reactions and replies, grouped by the entry they belong to (live).
   const stopReactions = api.data.query({ type: 'daycare.reaction' }).subscribe((rows) => (app.reactions = Object.fromEntries(groupReactions(rows, me()))));
   const stopReplies = api.data.query({ type: 'daycare.comment' }).subscribe((rows) => (app.replies = Object.fromEntries(groupReplies(rows))));

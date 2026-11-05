@@ -48,3 +48,14 @@ textarea { min-height: 96px; resize: vertical; }
   --warn: #b45309;
 }
 :root[data-theme='dark'] { --warn: #fbbf24; }
+
+/* Printing (SPEC 7): attendance prints as a page per week; a daily summary prints on its own. */
+@media print {
+  html, body { background: #fff !important; color: #000 !important; }
+  .noprint { display: none !important; }
+  .week { break-inside: avoid; break-after: page; }
+  .week:last-child { break-after: auto; }
+  html.print-one body * { visibility: hidden; }
+  html.print-one .print-this, html.print-one .print-this * { visibility: visible; }
+  html.print-one .print-this { position: absolute; left: 0; top: 0; width: 100%; box-shadow: none; border: 0; }
+}
