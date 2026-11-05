@@ -2,7 +2,7 @@
  * SPEC 11 phase 6 acceptance on two real browsers through a real relay: emoji reactions with counts and "who reacted",
  * thread replies in both directions, and who may edit or delete what.
  */
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from './fixtures';
 import { addFirstFamily, newPage, pairParent, setupProvider } from './helpers';
 
 const pill = (p: Page, emoji: string) => p.getByTestId(`reaction-${emoji}`);

@@ -32,6 +32,18 @@ export interface SyncSnapshot {
   lastMessageAt?: number;
   /** When the connection last came up (ms). */
   connectedAt?: number;
+  /** Devices connected straight to this one (WebRTC), with no relay in between. */
+  direct?: number;
+  /** Changes written on this device that nothing (relay or nearby device) has confirmed yet. */
+  unconfirmed?: number;
+}
+
+/** Pairing two devices directly by exchanging two codes (WebRTC; works on one Wi-Fi with no internet). */
+export interface DirectPairing {
+  createOffer(): Promise<{ code: string; sessionId: string }>;
+  acceptOffer(code: string): Promise<{ code: string; sessionId: string }>;
+  acceptAnswer(sessionId: string, code: string): Promise<void>;
+  cancel(sessionId: string): void;
 }
 let snapshot: SyncSnapshot = { state: 'idle' };
 const syncListeners = new Set<(s: SyncSnapshot) => void>();
@@ -60,6 +72,8 @@ export const bridge = {
       for (const cb of [...syncListeners]) cb(snapshot);
     },
   },
+  /** Set by the transport module when direct connections are available. */
+  direct: undefined as DirectPairing | undefined,
   /** Set by app.config.ts. */
   qrToSvg: undefined as ((text: string) => string) | undefined,
 };

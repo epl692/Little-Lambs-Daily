@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { App } from '../lib/app.svelte';
+  import QrScanner from '../components/QrScanner.svelte';
   import Top from '../components/Top.svelte';
 
   let { ctx }: { ctx: App } = $props();
@@ -7,6 +8,7 @@
   let sas = $state('');
   let busy = $state(false);
   let error = $state('');
+  let scanning = $state(false);
   const words = (s: string) => s.split('-').join(' · ');
 
   async function submit(e: Event) {
@@ -35,6 +37,7 @@
   {#if !busy}
     <form class="stack" onsubmit={submit}>
       <p class="muted">On your other device, open Settings → Link another device, then enter the code it shows.</p>
+      <button type="button" class="btn" data-testid="scan-qr" onclick={() => (scanning = true)}>📷 Scan the QR code</button>
       <label class="field">Code
         <textarea bind:value={code} required data-testid="link-code-input"></textarea>
       </label>
@@ -53,3 +56,6 @@
     </div>
   {/if}
 </main>
+{#if scanning}
+  <QrScanner expect="link" onfound={(t) => ((code = t), (scanning = false))} onclose={() => (scanning = false)} />
+{/if}

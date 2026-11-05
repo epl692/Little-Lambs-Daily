@@ -4,7 +4,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { unzipSync, strFromU8 } from 'fflate';
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 import { addFirstFamily, newPage, pairParent, seedDay, setupProvider } from './helpers';
 
 test('daily summary: on request for today, pinned on past days, and shared as text', async ({ browser }) => {
@@ -39,6 +39,30 @@ test('daily summary: on request for today, pinned on past days, and shared as te
   expect(text).toContain('Bottles: 1 bottle, 3.5 oz finished');
   expect(text).toContain('Great morning! <b>not bold</b>'); // shown as text, never as markup
   await expect(provider.getByTestId('toast-text')).toHaveText('Summary saved to your downloads');
+
+  // the same day as a picture: a real PNG, 1080 wide, with writing on it (not a blank page)
+  const [pic] = await Promise.all([provider.waitForEvent('download'), provider.getByTestId('sum-picture').click()]);
+  expect(pic.suggestedFilename()).toMatch(/^Ada-\d{4}-\d{2}-\d{2}\.png$/);
+  await pic.saveAs('test-results/shots/summary.png');
+  const png = readFileSync((await pic.path())!);
+  expect([...png.subarray(0, 8)]).toEqual([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  expect(png.readUInt32BE(16)).toBe(1080); // width, from the PNG header
+  expect(png.readUInt32BE(20)).toBeGreaterThan(400);
+  const inked = await provider.evaluate(async (b64) => {
+    const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+    const bmp = await createImageBitmap(new Blob([bytes], { type: 'image/png' }));
+    const c = document.createElement('canvas');
+    c.width = bmp.width;
+    c.height = bmp.height;
+    const g = c.getContext('2d')!;
+    g.drawImage(bmp, 0, 120);
+    const px = g.getImageData(0, 120, bmp.width, Math.min(bmp.height - 120, 500)).data;
+    let dark = 0;
+    for (let i = 0; i < px.length; i += 4) if (px[i]! < 120 && px[i + 1]! < 120) dark++;
+    return dark;
+  }, png.toString('base64'));
+  expect(inked).toBeGreaterThan(500); // there is text on it
+  await expect(provider.getByTestId('toast-text')).toHaveText('Picture saved to your downloads');
 
   // yesterday has one lunch: its summary is pinned without asking
   await parent.getByRole('button', { name: /previous day/i }).click();

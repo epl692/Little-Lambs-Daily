@@ -2,7 +2,7 @@
  * SPEC 11 phase 8 acceptance on real browsers through a real relay: the parent's profile (family notes are theirs to write,
  * everything else is read-only), the same-day rule on editing their own check-in time, and leaving the family.
  */
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 import { addFirstFamily, newPage, pairParent, setupProvider } from './helpers';
 
 test('profile: a parent writes family notes the daycare sees; allergies and care notes are read-only', async ({ browser }) => {

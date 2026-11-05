@@ -5,6 +5,10 @@ export interface SyncSnapshot {
   url?: string;
   lastMessageAt?: number;
   connectedAt?: number;
+  /** Devices connected straight to this one, with no relay. */
+  direct?: number;
+  /** Changes written here that nothing has confirmed yet. */
+  unconfirmed?: number;
 }
 export interface SyncSource {
   get(): SyncSnapshot;
@@ -33,17 +37,25 @@ export function ago(ms: number, now: number): string {
 export function describeSync(s: SyncSnapshot | undefined, online: boolean, now: number): SyncView {
   const where = s?.url ? ` (${s.url.replace(/^wss?:\/\//, '')})` : '';
   const saved = 'Everything you do is saved on this device and will sync when a connection is back.';
-  if (!online) return { dot: 'offline', icon: '○', label: 'Offline', lines: ['This device has no internet connection.', saved] };
+  const direct = s?.direct ?? 0;
+  const waiting = s?.unconfirmed ?? 0;
+  const waitingLine = `${waiting} change${waiting === 1 ? ' is' : 's are'} saved only on this device so far.`;
+  const viaRelay = online && s?.state === 'ready';
+  if (direct > 0 && !viaRelay) {
+    return { dot: waiting > 0 ? 'syncing' : 'synced', icon: waiting > 0 ? '◐' : '●', label: waiting > 0 ? `Syncing (${waiting})` : 'Synced (direct)', lines: [`Connected straight to ${direct} nearby device${direct === 1 ? '' : 's'}, with no relay.`, online ? 'The relay cannot be reached right now.' : 'There is no internet connection.', 'Changes reach those devices; others get them when the relay is back.'] };
+  }
+  if (!online) return { dot: 'offline', icon: '○', label: 'Offline', lines: ['This device has no internet connection.', ...(waiting ? [waitingLine] : []), saved] };
   switch (s?.state) {
     case 'ready':
+      if (waiting > 0) return { dot: 'syncing', icon: '◐', label: `Syncing (${waiting})`, lines: [`Sending ${waiting} change${waiting === 1 ? '' : 's'} to the relay${where}…`, 'You can keep working; this finishes by itself.'] };
       return {
         dot: 'synced',
         icon: '●',
         label: 'Synced',
-        lines: [`Connected to the relay${where}.`, s.lastMessageAt ? `Last update received ${ago(s.lastMessageAt, now)}.` : 'Nothing new has arrived since connecting.'],
+        lines: [`Connected to the relay${where}.`, s.lastMessageAt ? `Last update received ${ago(s.lastMessageAt, now)}.` : 'Nothing new has arrived since connecting.', ...(direct > 0 ? [`Also connected straight to ${direct} nearby device${direct === 1 ? '' : 's'}.`] : [])],
       };
     case 'connecting':
-      return { dot: 'syncing', icon: '◐', label: 'Connecting', lines: [`Reaching the relay${where}…`, saved] };
+      return { dot: 'syncing', icon: '◐', label: 'Connecting', lines: [`Reaching the relay${where}…`, ...(waiting ? [waitingLine] : []), saved] };
     case 'unsupported':
       return { dot: 'offline', icon: '○', label: 'Not syncing', lines: ['This browser cannot connect to the relay.', saved] };
     default:
@@ -51,7 +63,7 @@ export function describeSync(s: SyncSnapshot | undefined, online: boolean, now: 
         dot: 'offline',
         icon: '○',
         label: 'Offline',
-        lines: [`Cannot reach the relay${where}${s?.detail ? `: ${s.detail}` : ''}. It will keep trying.`, saved],
+        lines: [`Cannot reach the relay${where}${s?.detail ? `: ${s.detail}` : ''}. It will keep trying.`, ...(waiting ? [waitingLine] : []), saved],
       };
   }
 }

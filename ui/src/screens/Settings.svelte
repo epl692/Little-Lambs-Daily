@@ -23,6 +23,27 @@
   let saved = $state('');
   let threshold = $state(180);
   const thresholds = [60, 120, 180, 240, 360];
+  // System notifications while the app is open in the background (the app always tells you in itself).
+  const canNotify = typeof Notification !== 'undefined';
+  // svelte-ignore state_referenced_locally
+  let notifyOn = $state(canNotify && localStorage.getItem(ctx.NOTIFY_KEY) === '1' && Notification.permission === 'granted');
+  let notifyNote = $state('');
+  async function toggleNotify() {
+    notifyNote = '';
+    if (!notifyOn) {
+      localStorage.setItem(ctx.NOTIFY_KEY, '0');
+      return;
+    }
+    const p = Notification.permission === 'granted' ? 'granted' : await Notification.requestPermission();
+    if (p === 'granted') {
+      localStorage.setItem(ctx.NOTIFY_KEY, '1');
+      notifyNote = 'On. You will be told about new replies' + (provider ? '.' : ' and new entries about your child.');
+    } else {
+      notifyOn = false;
+      localStorage.setItem(ctx.NOTIFY_KEY, '0');
+      notifyNote = 'Your browser blocked notifications. Allow them in the browser settings for this app, then try again.';
+    }
+  }
   let devices = $state<MyDevice[]>([]);
   // svelte-ignore state_referenced_locally
   let myName = $state(ctx.display(session?.user ?? '', session?.displayName ?? ''));
@@ -130,6 +151,17 @@
     </div>
   </section>
 
+  <section class="card stack" aria-labelledby="nt-h">
+    <h2 id="nt-h">Notifications</h2>
+    {#if canNotify}
+      <label class="row"><input type="checkbox" bind:checked={notifyOn} onchange={toggleNotify} data-testid="notify-toggle" /> <span>Tell me about new replies{provider ? '' : ' and entries'} when the app is in the background</span></label>
+      {#if notifyNote}<p class="small muted" role="status" data-testid="notify-note">{notifyNote}</p>{/if}
+    {:else}
+      <p class="muted">This browser does not support notifications. The app still shows new replies while it is open.</p>
+    {/if}
+    <p class="small muted">Phones can only be notified while the app is open or recently used; there is no push server yet.</p>
+  </section>
+
   <section class="card stack" aria-labelledby="me-h">
     <h2 id="me-h">This device</h2>
     <p class="muted">Signed in as <strong data-testid="my-name">{ctx.display(session?.user ?? '', session?.displayName ?? 'you')}</strong></p>
@@ -147,6 +179,12 @@
     </ul>
     {#if manageError}<p class="err" role="alert">{manageError}</p>{/if}
     <button type="button" class="btn" data-testid="link-another" onclick={() => ctx.go({ name: 'showLinkCode' })}>Link another device</button>
+  </section>
+
+  <section class="card stack" aria-labelledby="dc-h">
+    <h2 id="dc-h">Connect directly</h2>
+    <p class="small muted">No internet, or the relay is down? Two devices on the same Wi-Fi can still share changes.</p>
+    <button type="button" class="btn" data-testid="open-direct" onclick={() => ctx.go({ name: 'direct' })}>Connect two devices</button>
   </section>
 
   <section class="card stack" aria-labelledby="rp-h">

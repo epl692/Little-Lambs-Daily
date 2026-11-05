@@ -91,15 +91,25 @@ In Nginx Proxy Manager, tick **Websockets Support** on the proxy host.
 - [ ] Post a photo from the provider phone; the parent phone shows the thumbnail and opens the full photo.
 - [ ] Settings → Reports and exports: download an attendance CSV and a backup ZIP.
 - [ ] Airplane mode, close the app completely, reopen it: it still opens and shows today's entries.
+- [ ] Join as a parent by scanning the invite QR code with the app's **Scan the QR code** button (needs HTTPS for the camera).
+- [ ] Settings → Link another device on one phone, scan its code from a second phone, confirm the five words match.
+- [ ] Turn the relay off (or both phones' Wi-Fi off and on to one shared network with no internet). Settings → **Connect two devices**: swap the two codes; the sync button should read **Synced (direct)** and a new entry should appear on the other phone.
+- [ ] Settings → Notifications: switch it on, put the app in the background on one phone, reply to a card from the other; a notification appears.
 
-## 6. Updating
+## 6. The framework submodule
+
+`framework/` currently points at a branch of the framework with two small fixes that are not merged upstream yet (device linking
+through a relay; a "changes waiting" count). Push those branches and merge them upstream (DECISIONS.md D-019) before building from a
+fresh clone, or the clone will not find the pinned commit.
+
+## 7. Updating
 
 - **App:** build again and upload `dist/`. Phones notice in the background and show **“A new version is ready” → Reload**. Nobody is
   interrupted mid-entry.
 - **Relay:** `git pull`, then `docker compose -f relay/docker-compose.yml up -d --build`. Keep the volume.
 - The `framework/` submodule is pinned; update it only deliberately (see `DECISIONS.md` D-009).
 
-## 7. Backups and recovery
+## 8. Backups and recovery
 
 - Every device keeps a full copy of what it can see. The relay passes changes along and holds them in memory (after a relay restart,
   devices simply resend what it is missing); photos are kept on its disk for `BLOB_TTL_DAYS`. So losing one phone loses nothing:
@@ -109,7 +119,7 @@ In Nginx Proxy Manager, tick **Websockets Support** on the proxy host.
   again). What a restore cannot bring back is listed in `DECISIONS.md` D-018.
 - Back up the relay's volume too; it is cheap insurance for photos.
 
-## 8. Troubleshooting
+## 9. Troubleshooting
 
 | Symptom | Likely cause |
 |---|---|
@@ -117,8 +127,12 @@ In Nginx Proxy Manager, tick **Websockets Support** on the proxy host.
 | Text syncs but photos never arrive on the other phone | The relay has no `BLOB_DIR`, or its volume is full or read-only. |
 | “A new version is ready” never appears | `sw.js` is being cached by the host or a CDN. Set `Cache-Control: no-cache` on it. |
 | Camera or install option is missing | The app is being served over plain HTTP. |
+| "Scan the QR code" says the camera is blocked | The browser's camera permission for the site is off; allow it, or paste the link instead. |
+| Direct connection times out | The two devices must be on the same Wi-Fi, and the network must not isolate clients (some guest networks do). There is no internet relay for this; it is same-network only. |
+| The sync button says "Syncing (n)" for a long time | The relay is reachable but not acknowledging: check its logs and disk space. Changes are safe on the device meanwhile. |
+| Photos show a spinner for a while on a parent's phone | They retry by themselves for about a minute while the relay finishes receiving them; if the provider posted offline they appear after the provider reconnects. |
 
-## 9. Checks to do by hand before launch
+## 10. Checks to do by hand before launch
 
 Automated tests cover a lot (see `tests/`), but these need a person:
 

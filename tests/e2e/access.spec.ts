@@ -2,7 +2,7 @@
  * Who can get in, and cutting them off: a provider removes a parent, signs out a linked device, removes another provider.
  * Real browsers, real relay: the person removed must actually stop getting data.
  */
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 import { addFirstFamily, newPage, pairParent, setupProvider } from './helpers';
 
 test('a provider removes a parent: their phone loses the family at once and stops getting new days', async ({ browser }) => {

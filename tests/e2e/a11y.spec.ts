@@ -4,7 +4,7 @@
  * with a screen reader, which is listed in the README checklist.
  */
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from './fixtures';
 import { addFirstFamily, newPage, pairParent, seedDay, setupProvider } from './helpers';
 
 async function scan(page: Page, where: string) {

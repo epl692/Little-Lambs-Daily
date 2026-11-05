@@ -2,7 +2,7 @@
  * SPEC 11 phase 4: roster and timeline (read). Uses a provider and, where it matters, a parent on a second browser.
  * Entries are seeded through the dev host until phase 5 adds the real add flow.
  */
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 import { addFirstFamily, newPage, pairParent, seedDay, setupProvider, TOO_EARLY } from './helpers';
 
 test.skip(TOO_EARLY(), 'seeded entries sit between 1 and 5 AM, so the clock must be past 6 AM');

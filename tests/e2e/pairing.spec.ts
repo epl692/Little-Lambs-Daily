@@ -3,7 +3,7 @@
  * Covers: provider setup, add family, invite QR/link, matching SAS words on both screens, provider approval,
  * parent lands on their child, invite is single-use, and the secret never stays in the address bar.
  */
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from './fixtures';
 
 const norm = (s: string | null) => (s ?? '').replace(/\s*[·-]\s*/g, '-').trim();
 

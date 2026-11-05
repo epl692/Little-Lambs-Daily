@@ -5,7 +5,7 @@
  */
 import { readFileSync } from 'node:fs';
 import { strFromU8, unzipSync } from 'fflate';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from './fixtures';
 import { addFirstFamily, newPage, pairParent, setupProvider } from './helpers';
 
 /** A real 3000x2000 JPEG with a fake EXIF segment (including a GPS tag name) spliced in after the start marker. */
@@ -118,17 +118,32 @@ test('photos: shrunk, stripped, shared to two families, seen by one parent in fu
   await expect(parent.getByTestId('photo-viewer')).toHaveCount(0);
 
   // the caption and reactions work on a photo like any card; the parent has no Photo tile
-  await expect(parent.getByText('Finger painting 🎨')).toBeVisible();
+  await expect(parent.getByTestId('tl-item').getByText('Finger painting 🎨')).toBeVisible();
   await parent.getByTestId('add-fab').click();
   await expect(parent.getByTestId('tile-photo')).toHaveCount(0);
   await parent.getByTestId('sheet-close').click();
 
   // the second family's entry exists on the provider only (the parent is not in that Space)
   expect(await parent.evaluate(async () => (await window.__syncHost!.contextOf('daycare').data.query({ type: 'daycare.entry' }).once()).length)).toBe(1);
+});
 
-  // Undo takes both entries away
-  await provider.getByTestId('toast-undo').click();
-  await expect(parent.getByTestId('tl-item')).toHaveCount(0);
+test('Undo takes a multi-child photo post away from everyone', async ({ browser }) => {
+  const provider = await newPage(browser);
+  await setupProvider(provider);
+  await addFirstFamily(provider, 'Lee', 'Ada');
+  const parent = await pairParent(provider, browser, 'Erin');
+  await provider.getByRole('button', { name: /back/i }).click();
+  await provider.getByTestId('show-all').click();
+  const source = await jpegWithGps(provider);
+  await provider.getByTestId('quick-add').click();
+  const [chooser] = await Promise.all([provider.waitForEvent('filechooser'), provider.getByTestId('tile-photo').click()]);
+  await chooser.setFiles([{ name: 'a.jpg', mimeType: 'image/jpeg', buffer: source }]);
+  await expect(provider.getByTestId('photo-previews').locator('img')).toHaveCount(1, { timeout: 30_000 });
+  await provider.getByTestId('details-save').click();
+  await expect(parent.getByTestId('tl-item')).toHaveCount(1, { timeout: 30_000 });
+  await provider.getByTestId('toast-undo').click(); // straight away: the toast only lasts a few seconds
+  await expect(parent.getByTestId('tl-item')).toHaveCount(0, { timeout: 30_000 });
+  await expect(provider.getByTestId('toast-text')).toHaveText('Undone');
 });
 
 test('several photos: a grid, the viewer swipes between them, and one can be removed before saving', async ({ browser }) => {
@@ -238,6 +253,11 @@ test('a posted photo entry can have photos removed and added, but never end up e
   expect(await photoCount()).toEqual({ photos: 2, thumbs: 2 });
   await expect(provider.getByTestId('photo-open')).toHaveCount(2);
   await expect(parent.getByTestId('photo-grid').getByTestId('photo-img')).toHaveCount(2, { timeout: 30_000 });
+
+  // the daily summary shows the day's photos as thumbnails
+  await parent.getByTestId('summary-toggle').click();
+  await expect(parent.getByTestId('sum-photos').getByTestId('photo-img')).toHaveCount(2, { timeout: 60_000 });
+  await parent.getByTestId('summary-toggle').click();
 
   // removing them all is not allowed: Save stays off
   await provider.getByTestId('entry-menu').click();

@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { App } from '../lib/app.svelte';
   import { joinErrorMessage } from '../lib/service';
+  import QrScanner from '../components/QrScanner.svelte';
   import Top from '../components/Top.svelte';
 
   let { ctx, link = '' }: { ctx: App; link?: string } = $props();
@@ -14,6 +15,7 @@
   let phase = $state<'form' | 'waiting' | 'syncing'>('form');
   let sas = $state('');
   let error = $state('');
+  let scanning = $state(false);
   const relationship = $derived(chip === 'Other' ? other.trim() : chip);
   const words = (s: string) => s.split('-').join(' · ');
 
@@ -45,6 +47,7 @@
 
   {#if phase === 'form'}
     <form class="stack" onsubmit={submit}>
+      <button type="button" class="btn" data-testid="scan-qr" onclick={() => (scanning = true)}>📷 Scan the QR code</button>
       <label class="field">Invite link
         <textarea bind:value={text} placeholder="Paste the link you were sent" required data-testid="invite-text"></textarea>
       </label>
@@ -82,3 +85,6 @@
     </div>
   {/if}
 </main>
+{#if scanning}
+  <QrScanner expect="invite" onfound={(t) => ((text = t), (scanning = false))} onclose={() => (scanning = false)} />
+{/if}

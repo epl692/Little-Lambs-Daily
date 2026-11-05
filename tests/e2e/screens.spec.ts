@@ -1,5 +1,5 @@
 /** Writes screenshots of the add flow to test-results/shots/ (light and dark, 375px) so the UI can be reviewed by eye. */
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 import { addFirstFamily, newPage, seedDay, setupProvider } from './helpers';
 
 for (const scheme of ['light', 'dark'] as const) {

@@ -36,6 +36,7 @@
     {#if open}
       <div class="details card stack" role="region" aria-label="Sync details" data-testid="sync-details">
         {#each view.lines as l (l)}<p class="small">{l}</p>{/each}
+        {#if view.dot !== 'synced'}<button type="button" class="btn" data-testid="sync-direct" onclick={() => ((open = false), ctx.go({ name: 'direct' }))}>Connect directly</button>{/if}
       </div>
     {/if}
   </span>

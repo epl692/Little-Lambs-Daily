@@ -23,6 +23,25 @@ describe('sync pill', () => {
     expect(describeSync({ state: 'unsupported' }, true, now).label).toBe('Not syncing');
     expect(describeSync(undefined, true, now).dot).toBe('offline');
   });
+  it('counts changes still on their way: syncing (n) while connected, and "only on this device" while not', () => {
+    const syncing = describeSync({ state: 'ready', unconfirmed: 3 }, true, now);
+    expect(syncing).toMatchObject({ dot: 'syncing', label: 'Syncing (3)', icon: '◐' });
+    expect(describeSync({ state: 'ready', unconfirmed: 1 }, true, now).lines.join(' ')).toContain('1 change to the relay');
+    expect(describeSync({ state: 'ready', unconfirmed: 0 }, true, now).label).toBe('Synced');
+    const off = describeSync({ state: 'ready', unconfirmed: 2 }, false, now);
+    expect(off.label).toBe('Offline');
+    expect(off.lines.join(' ')).toContain('2 changes are saved only on this device');
+    expect(describeSync({ state: 'error', unconfirmed: 1 }, true, now).lines.join(' ')).toContain('1 change is saved only on this device');
+  });
+  it('nearby devices count: synced (direct) when the relay is out of reach, syncing while changes are still unconfirmed', () => {
+    expect(describeSync({ state: 'error', direct: 1 }, true, now)).toMatchObject({ dot: 'synced', label: 'Synced (direct)' });
+    expect(describeSync({ state: 'connecting', direct: 2 }, false, now).lines.join(' ')).toContain('2 nearby devices');
+    expect(describeSync({ state: 'error', direct: 1, unconfirmed: 4 }, true, now).label).toBe('Syncing (4)');
+    // with the relay up, a nearby device is a bonus line, not a different status
+    const both = describeSync({ state: 'ready', direct: 1 }, true, now);
+    expect(both.label).toBe('Synced');
+    expect(both.lines.join(' ')).toContain('1 nearby device');
+  });
   it('words times plainly', () => {
     expect(ago(1000, 1500)).toBe('just now');
     expect(ago(0, 30_000)).toBe('30 seconds ago');

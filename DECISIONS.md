@@ -63,7 +63,7 @@ All seven types are in `modules/daycare/schema/`. `objectCheck` on `entry` requi
 `approval: 'required'` and device links could never complete in an app-build app. Fix: two optional `AppConfig` fields
 passed through to `openSecureCore` (about 10 lines + a test). Raised as
 [epl692/Sync-PWA-Framework#4](https://github.com/epl692/Sync-PWA-Framework/pull/4); `framework/` is pinned to that
-branch's commit (`4200397`) until it merges. **After it merges, move the submodule pin to master.**
+branch's commit (`4200397`) until it merged. **Merged; the pin now follows master (see D-019 for two further framework branches).**
 The app answers through `modules/daycare/bridge.ts`: the UI registers an approver (the SAS dialog); with none mounted the
 answer is "no".
 
@@ -201,7 +201,7 @@ All onboarding logic is `ui/src/lib/service.ts`, tested on real encrypted nodes.
   A photo that cannot be fetched is listed under `missingPhotos` instead of failing the export. Staff invites (which hold join
   links) and settings are never exported. Folder names are sanitised (a child named `..` cannot escape its folder).
 - **After Leave family** the app only shows families the device still belongs to (the framework keeps what was synced and has no purge call).
-- **Deferred:** daily summary as an image; attendance by a day's hours worked in a facility timezone
+- **Deferred:** attendance by a day's hours worked in a facility timezone
   (all times are the device's local time).
 
 ## D-018 Polish and hardening (phase 10), restore, lazy ZIP
@@ -216,24 +216,66 @@ All onboarding logic is `ui/src/lib/service.ts`, tested on real encrypted nodes.
   `photos/` with new thumbnails; a photo entry whose files are missing is skipped and reported. A restore previews what it will add first.
   Not restored: the staff list, settings, invites, avatars. An item deleted on this device stays deleted.
 - **Sync pill** (● Synced / ◐ Connecting / ○ Offline; tap for details): the transport module publishes its state through the bridge
-  (`bridge.sync`); the pill also watches the browser's online/offline events. SPEC's "Syncing (n)" count is **not available**: the framework
-  exposes no pending-packet count to apps, so "Synced" means "connected to the relay".
+  (`bridge.sync`); the pill also watches the browser's online/offline events. The "Syncing (n)" count was not available at first; it is now (D-019,
+  `core.unconfirmed()`), so "Synced" means connected **and** nothing of ours is waiting.
 - **Update banner:** the UI watches the service worker itself (`ui/src/lib/updates.ts`); "A new version is ready → Reload". It never
   reloads on its own, so nobody loses a half-written entry.
 - **Accessibility:** an automated axe WCAG A/AA scan of every main screen in light and dark (a real a11y test, in CI with the rest), focus
   trapped in sheets and dialogs with Escape and focus-return (`ui/src/lib/focus.ts`), reduced motion verified. Found and fixed: a date button
   whose spoken name did not contain its visible text, an unlabeled hidden file input, a sideways-scrolling table unreachable by keyboard.
-  A person with a screen reader still needs to do a pass (DEPLOY.md section 9).
+  A person with a screen reader still needs to do a pass (DEPLOY.md section 10).
 - **Performance:** 150-entry day: the first screenful in ~17 ms and all cards in ~115 ms on a desktop; add sheet opens in ~15-35 ms. The
   timeline paints 24 cards at once and fills in the rest over the next frames. The test guards regressions on a fast machine; the spec's
   budget is for a mid-range Android phone, which has **not** been measured. (`content-visibility` was tried and made it slower.)
 - **Offline cold start:** tested end to end (ten entries logged offline, reload with no network, everything still there, all sync on reconnect).
 - **Settings:** "since" threshold control and the real version number added. **Not possible as specced:** a relay URL override. The page's
   security policy only permits the relay address baked in at build time, and widening it to any address would weaken it. Changing
-  relay means rebuilding (DEPLOY.md). **Deferred:** editing the daycare/app name (it is stored in the provider-only Staff Space, so parents'
-  devices would keep the built-in name), changing your own display name (no framework rename call), removing a parent or revoking a device
-  from a provider screen.
-- **Bundle:** the whole app script, framework included, is 150 KB gzip (budget: under 200 KB excluding the framework); the ZIP tool is a further 6 KB, loaded only when used.
+  relay means rebuilding (DEPLOY.md). **Done later (D-019):** editing the daycare/app name (copied to each family so parents see it), changing your own
+  display name, removing a parent or provider and signing out your own devices.
+- **Bundle:** the whole app script, framework included, was 150 KB gzip and is now 163 KB after the features in D-019 (budget: under 200 KB excluding the framework); the ZIP tool is a further 6 KB, loaded only when used.
+
+## D-019 The deferred list (round after phase 10)
+- **Framework pin.** Upstream PR #4 is merged and `framework/` now builds on master, plus two small branches that are **not yet upstream**
+  (see below), merged into a local `little-lambs-needs` branch that the submodule points at. They must be pushed (and ideally merged
+  upstream) before anyone can clone this repo with `--recurse-submodules`.
+  - `fix-device-link-routes`: **a real framework bug.** "Link another device" never worked through a relay. A new device has no Spaces,
+    and the relay only forwards messages from a device that has announced one, so the old device never saw the request. (Join by invite
+    worked because the invite names a Space.) The link code now carries one Space id for the new device to announce. The framework's own
+    link test went node-to-node, which is why it was missed; a relay-hub test now covers it (fails without the fix).
+  - `sync-pending-count`: `core.unconfirmed()` exposes the existing outbox (changes written here that no peer has acknowledged).
+    The sync button shows **Syncing (n)** while connected and "n changes are saved only on this device" while not.
+- **Access.** A provider can remove a parent (Family screen) or another provider (Settings; they leave the Staff Space and every
+  family), and anyone can sign out their *own* other devices (Settings). The framework only lets a person revoke their own devices, so a
+  lost *parent* phone is handled by removing that parent and re-inviting. Tested with real removals: the removed phone gets nothing more.
+- **Daycare name for parents.** A `brand` object in every family Space (id `brand:<space>`), written by providers only, so parents see
+  the name a provider sets in Settings. New families get it from day one. A parent's attempt to change it never reaches other devices.
+- **Edit for all in batch** on the card menu (providers; not naps): shared details change for every child in the batch, each child keeps their
+  own amount.
+- **Your own name.** The framework fixes a member's name when they join and has no rename call, so the app keeps a `profile` object per
+  person per Space (a person writes only their own; the validator enforces it) that the UI prefers everywhere, old entries and replies
+  included. Entries keep the name they were written with underneath.
+- **Photos.** Posted entries can have photos added or removed (never down to zero); a provider's device **pins** the last two days of photos so
+  the storage budget never evicts them. **A real bug fixed here:** a parent's phone asked the relay for a photo the moment the entry arrived,
+  but the relay was still receiving the later photos from the provider and answered "don't have it"; the framework then waits forever
+  (nothing tells the phone when the relay gets it). It hit any post of two or more photos, and any photo posted offline. Photos now retry
+  (a time limit per try, cancel, ask again), and tests cover both cases, including "post offline, reconnect". An upstream fix (the relay
+  offering the blob once it has it) would be cleaner.
+- **Notifications.** No push server exists, so: an in-app message for new replies on cards you wrote or threads you joined, and, for parents, new
+  entries from the daycare (not bare arrivals/naps); a burst becomes one message; history that merely finished syncing is never "news". An
+  optional switch in Settings adds the browser's own notification while the app is open in the background. `notify()` in
+  `ui/src/lib/notify.ts` is the seam a Web Push sender would register on. **Not possible without a server:** a notification when the app is
+  fully closed.
+- **Daily summary as a picture.** Drawn on the device on a white card (so it reads the same wherever it is sent), shared with the system share
+  sheet where it can take files, else downloaded. The card now also shows up to six photo thumbnails.
+- **QR scanning** for invites and device links: the browser's own detector where it exists, otherwise a small decoder loaded only when the
+  scanner opens (46 KB, `public/qr-decode.js`; the build script is now `scripts/build-assets.mjs`, with the ZIP tool). Codes of the wrong
+  kind are refused politely; a blocked or missing camera says so and points to pasting.
+- **Connect directly (WebRTC).** Two devices on the same Wi-Fi swap two codes (camera or paste) and then sync straight to each other with no relay
+  and no internet; the button then reads "Synced (direct)". Tested in the browser with the relay deliberately cut. **Not verified on real
+  phones:** it needs both to be on one network that does not isolate clients, and phones may need a moment. There is no STUN/TURN, so
+  it is same-network only by design.
+- **Still not done:** pushing the framework branches upstream (needs a decision); real-device checks for direct connections and the native QR
+  detector (this machine's browser has none, so only the app's decoder was exercised end to end); a notification when the app is closed.
 
 ## Open items (SPEC 13) — assumptions so far
 1. Names/colors: defaults from spec (`APP_NAME`, `DAYCARE_NAME`, accent `#14B8A6`).

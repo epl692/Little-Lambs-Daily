@@ -14,8 +14,8 @@
     "build:ui": "vite build --config ui/vite.config.ts",
     "dev:ui": "vite build --config ui/vite.config.ts --watch",
     "check": "tsx framework/packages/app-build/src/cli.ts check-modules app.config.ts",
-    "build": "npm run build:zip && npm run build:ui && tsx framework/packages/app-build/src/cli.ts build app.config.ts dist",
-    "build:dev": "npm run build:zip && npm run build:ui && tsx framework/packages/app-build/src/cli.ts build app.config.ts dist --dev",
+    "build": "npm run build:assets && npm run build:ui && tsx framework/packages/app-build/src/cli.ts build app.config.ts dist",
+    "build:dev": "npm run build:assets && npm run build:ui && tsx framework/packages/app-build/src/cli.ts build app.config.ts dist --dev",
     "verify": "tsx framework/packages/app-build/src/cli.ts verify-installable dist",
     "serve": "node scripts/serve.mjs",
     "relay": "tsx framework/packages/relay-server/src/server.ts",
@@ -25,7 +25,7 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "e2e": "npm run build:dev && playwright test",
-    "build:zip": "node scripts/build-zip.mjs"
+    "build:assets": "node scripts/build-assets.mjs"
   },
   "dependencies": {
     "fflate": "^0.8.2"
@@ -41,6 +41,7 @@
     "fake-indexeddb": "^6.0.0",
     "fast-check": "^3.23.2",
     "jsdom": "^25.0.0",
+    "jsqr": "^1.4.0",
     "prettier": "^3.3.0",
     "svelte": "^5.0.0",
     "svelte-check": "^4.0.0",

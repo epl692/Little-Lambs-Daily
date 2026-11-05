@@ -14,7 +14,8 @@ export interface RetryOptions {
   live?: () => boolean;
 }
 
-export const DEFAULT_TRIES = [6_000, 8_000, 12_000, 20_000, 30_000];
+// quick at first (a photo that is already on the relay arrives in well under a second), then more patient
+export const DEFAULT_TRIES = [2_500, 4_000, 6_000, 10_000, 15_000, 30_000];
 
 export class GaveUp extends Error {}
 

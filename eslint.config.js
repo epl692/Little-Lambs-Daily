@@ -1,7 +1,7 @@
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/node_modules/**', 'framework/**', 'coverage/**', 'playwright-report/**', 'test-results/**', 'public/zip.js'] },
+  { ignores: ['**/dist/**', '**/node_modules/**', 'framework/**', 'coverage/**', 'playwright-report/**', 'test-results/**', 'public/zip.js', 'public/qr-decode.js'] },
   ...tseslint.configs.recommended,
   {
     // Module code reaches data only through ModuleContext: types from @sync/modules and nothing else from @sync/*.

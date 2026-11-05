@@ -2,7 +2,7 @@
  * SPEC 11 phase 10 on real browsers: the sync pill through a real offline/online cycle, a cold start with no network, and the
  * timeline performance budget (a day of 150 entries).
  */
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 import { addFirstFamily, newPage, pairParent, setupProvider } from './helpers';
 
 test('offline: the pill says so, entries are kept and sync on reconnect; a cold start offline still works', async ({ browser }) => {
@@ -33,6 +33,13 @@ test('offline: the pill says so, entries are kept and sync on reconnect; a cold 
     await expect(provider.getByTestId('tl-item')).toHaveCount(i + 1);
   }
   await expect(parent.getByTestId('tl-item')).toHaveCount(0); // nothing has left the device
+  // and the sync button says how many changes are only on this device
+  await provider.getByRole('button', { name: /back/i }).click();
+  await provider.getByTestId('sync-pill').click();
+  await expect(provider.getByTestId('sync-details')).toContainText('10 changes are saved only on this device', { timeout: 15_000 });
+  await provider.getByTestId('sync-pill').click();
+  await provider.getByTestId('show-all').click();
+  await provider.getByTestId('child-card').click();
 
   // cold start with no network: the app shell and every entry come from this device
   await provider.reload();

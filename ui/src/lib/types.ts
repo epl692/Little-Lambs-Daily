@@ -4,6 +4,14 @@
  */
 import type { SyncSource } from './sync';
 
+/** Pairing two devices directly by exchanging two codes. */
+export interface DirectPairing {
+  createOffer(): Promise<{ code: string; sessionId: string }>;
+  acceptOffer(code: string): Promise<{ code: string; sessionId: string }>;
+  acceptAnswer(sessionId: string, code: string): Promise<void>;
+  cancel(sessionId: string): void;
+}
+
 export type Role = 'owner' | 'editor' | 'viewer';
 
 export interface SpaceInfo {
@@ -119,5 +127,7 @@ export interface UiApi {
   spaces: { admin?: Admin };
   bridge: UiBridge;
   sync?: SyncSource;
+  /** Direct (WebRTC) pairing, when this build and browser have it. A function because the transport starts after the UI is built. */
+  direct?: () => DirectPairing | undefined;
   [capability: string]: unknown;
 }

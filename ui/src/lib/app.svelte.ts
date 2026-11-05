@@ -4,6 +4,7 @@ import { createService, type AppState, type Service } from './service';
 import { createPhotoLogger, type PhotoLogger } from './photos';
 import { createThreads, groupReactions, groupReplies, type ReactionPill, type Reply, type Threads } from './threads';
 import { planPins, type TrackedMap } from './pins';
+import { createNotifier, entryUpdate, fresh, replyUpdates, type Update } from './notify';
 import { dayRange } from './time';
 import type { Admin, BlobRef, JoinRequest, Obj, UiApi } from './types';
 
@@ -34,6 +35,7 @@ export type View =
   | { name: 'invite'; space: string }
   | { name: 'settings' }
   | { name: 'reports' }
+  | { name: 'direct' }
   | { name: 'staffInvite' }
   | { name: 'showLinkCode' };
 
@@ -225,22 +227,67 @@ export function createApp(api: UiApi) {
   const display = (user: string, fallback: string): string => app.names[user] || fallback;
   // Reactions and replies, grouped by the entry they belong to (live).
   const stopReactions = api.data.query({ type: 'daycare.reaction' }).subscribe((rows) => (app.reactions = Object.fromEntries(groupReactions(rows, me()))));
-  const stopReplies = api.data.query({ type: 'daycare.comment' }).subscribe((rows) => (app.replies = Object.fromEntries(groupReplies(rows))));
+  // New replies and (for parents) new entries: told in the app, and by the browser's own notification when it is in the background.
+  const notifier = createNotifier();
+  const NOTIFY_KEY = 'lld.notify';
+  const notificationsOn = () => localStorage.getItem(NOTIFY_KEY) === '1' && typeof Notification !== 'undefined' && Notification.permission === 'granted';
+  notifier.register((updates: Update[]) => {
+    if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+      const u = updates[0]!;
+      showToast(updates.length > 1 ? updates.map((x) => x.title).join(' · ') : `${u.title}: ${u.body}`);
+    } else if (notificationsOn()) {
+      for (const u of updates) {
+        const opts = { body: u.body, tag: u.key, icon: 'icons/icon-192.png' };
+        const plain = () => void new Notification(u.title, opts);
+        const sw = (navigator as { serviceWorker?: ServiceWorkerContainer }).serviceWorker;
+        if (!sw) plain();
+        else void sw.getRegistration().then((reg) => void (reg ? reg.showNotification(u.title, opts) : plain()), plain);
+      }
+    }
+  });
+  let knownReplies: Set<string> | undefined;
+  const stopReplies = api.data.query({ type: 'daycare.comment' }).subscribe((rows) => {
+    app.replies = Object.fromEntries(groupReplies(rows));
+    const news = fresh(rows, knownReplies, (r) => Number(r.fields.at), Date.now());
+    knownReplies = new Set(rows.map((r) => r.id));
+    if (!news.length) return;
+    const all = rows.map((r) => ({ id: r.id, target: String(r.fields.target), text: String(r.fields.text ?? ''), createdBy: String(r.fields.createdBy), createdByName: String(r.fields.createdByName ?? ''), at: Number(r.fields.at) }));
+    void (async () => {
+      const entries = new Map<string, Entry>();
+      for (const t of new Set(news.map((r) => String(r.fields.target)))) {
+        const e = await api.data.get(t);
+        if (e) entries.set(t, e);
+      }
+      const asReply = new Set(news.map((r) => r.id));
+      for (const u of replyUpdates(all.filter((r) => asReply.has(r.id)), me(), all, entries, display)) notifier.notify(u);
+    })();
+  });
   const stopNaps = api.data
     .query({ type: 'daycare.entry', where: (o) => o.fields.kind === 'nap' && typeof o.fields.endAt !== 'number' })
     .subscribe((rows) => (app.openNaps = rows));
 
   // Today's entries: re-subscribes when midnight passes.
   let stopToday: (() => void) | undefined;
+  let knownToday: Set<string> | undefined;
   let todayStart = -1;
   function watchToday() {
     const [s, e] = dayRange(Date.now());
     if (s === todayStart) return;
     todayStart = s;
+    knownToday = undefined; // a new day is a new baseline
     stopToday?.();
     stopToday = api.data
       .query({ type: 'daycare.entry', where: (o) => Number(o.fields.at) >= s && Number(o.fields.at) < e })
-      .subscribe((rows) => (app.todayEntries = rows));
+      .subscribe((rows) => {
+        app.todayEntries = rows;
+        const news = fresh(rows, knownToday, (r) => Number(r.fields.at), Date.now());
+        knownToday = new Set(rows.map((r) => r.id));
+        if (app.st?.mode !== 'parent') return;
+        for (const e of news) {
+          const u = entryUpdate(e, app.children.find((c) => c.id === e.fields.child)?.name ?? 'Your child', me(), display);
+          if (u) notifier.notify(u);
+        }
+      });
   }
   watchToday();
   const tick = setInterval(() => {
@@ -306,6 +353,7 @@ export function createApp(api: UiApi) {
     stopNaps();
     stopReactions();
     stopReplies();
+    notifier.stop();
     stopToday?.();
     clearInterval(tick);
     clearTimeout(toastTimer);
@@ -313,7 +361,7 @@ export function createApp(api: UiApi) {
     removeApprover();
   }
 
-  return { app, svc, api, display, logger, threads, photos, nameOf, role, me, refresh, go, back, home, start, stop, showToast, dismissToast, openAdd, closeAdd, buzz };
+  return { app, svc, api, display, notifier, NOTIFY_KEY, logger, threads, photos, nameOf, role, me, refresh, go, back, home, start, stop, showToast, dismissToast, openAdd, closeAdd, buzz };
 }
 
 export type App = ReturnType<typeof createApp>;

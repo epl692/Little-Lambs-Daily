@@ -25,7 +25,7 @@ export default {
         class DaycareRoot extends HTMLElement {
           #unmount: (() => void) | undefined;
           connectedCallback(): void {
-            this.#unmount = mount(this, { appName: APP_NAME, version: APP_VERSION, daycareName: DAYCARE_NAME, data: ctx.data, blobs: ctx.blobs, spaces: ctx.spaces, bridge, sync: bridge.sync });
+            this.#unmount = mount(this, { appName: APP_NAME, version: APP_VERSION, daycareName: DAYCARE_NAME, data: ctx.data, blobs: ctx.blobs, spaces: ctx.spaces, bridge, sync: bridge.sync, direct: () => bridge.direct });
           }
           disconnectedCallback(): void {
             this.#unmount?.();

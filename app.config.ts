@@ -19,10 +19,10 @@ export default {
   icons: { src192: 'public/icons/icon-192.png', src512: 'public/icons/icon-512.png', maskable512: 'public/icons/maskable-512.png' },
   modules: [identity, transport, daycare],
   identityProvider: 'identity.invite',
-  transports: ['transport.ws'],
+  transports: ['transport.ws', 'transport.rtc'],
   settings: { transport: { relayUrl: RELAY_URL } },
   // The theme script must be a same-origin file: the generated CSP forbids inline scripts.
-  assets: ['public/theme-init.js', 'public/zip.js'],
+  assets: ['public/theme-init.js', 'public/zip.js', 'public/qr-decode.js'],
   // The relay must be listed here or the browser will refuse to connect to it.
   connectSrc: [RELAY_URL],
 
@@ -41,6 +41,17 @@ export default {
         onMemberChange: (cb) => s.on((e) => e.kind === 'member:changed' && cb(e.space)),
       }),
     );
+    // The sync button counts changes nothing has confirmed yet (SPEC 6.8 "syncing (n)").
+    const watchOutbox = async () => {
+      try {
+        const u = await core.unconfirmed();
+        if (bridge.sync.get().unconfirmed !== u.count) bridge.sync.publish({ unconfirmed: u.count });
+      } catch {
+        /* the core is closing */
+      }
+    };
+    setInterval(() => void watchOutbox(), 1500);
+    void watchOutbox();
     const blobs = await createBlobs({ core, keys: s.blobKeys, config: { budgetBytes: 500 * 1024 * 1024 } });
     defineSyncBlob(blobs);
     return blobs;

@@ -5,7 +5,7 @@
  *  - naps: start for 2 children, the banner shows 2 timers, Wake all ends both
  * Plus parent permissions, edit, delete with undo.
  */
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from './fixtures';
 import { addFirstFamily, newPage, pairParent, setupProvider, TOO_EARLY } from './helpers';
 
 const addChild = async (p: Page, name: string, already: number) => {
