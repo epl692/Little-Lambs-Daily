@@ -3,6 +3,7 @@
   import type { App } from '../lib/app.svelte';
   import { getChoice, setChoice, type ThemeChoice } from '../lib/theme';
   import type { MemberInfo } from '../lib/types';
+  import type { MyDevice } from '../lib/service';
   import { familyNameOf } from '../lib/service';
   import Top from '../components/Top.svelte';
 
@@ -14,9 +15,16 @@
   let staff = $state<MemberInfo[]>([]);
   let requireApproval = $state(true);
   let hours = $state(24);
+  // svelte-ignore state_referenced_locally
+  let daycareName = $state(ctx.app.daycareName); // already loaded at start; never overwritten while someone is typing
+  // svelte-ignore state_referenced_locally
+  let appNameField = $state(ctx.app.appName);
+  let nameSaved = $state('');
   let saved = $state('');
   let threshold = $state(180);
   const thresholds = [60, 120, 180, 240, 360];
+  let devices = $state<MyDevice[]>([]);
+  let manageError = $state('');
   let leaveError = $state('');
 
   const themes: { value: ThemeChoice; label: string }[] = [
@@ -25,10 +33,37 @@
     { value: 'dark', label: 'Dark' },
   ];
 
+  async function loadDevices() {
+    devices = await ctx.svc.myDevices();
+  }
+  async function loadStaff() {
+    staff = (await ctx.svc.members(ctx.app.st!.staff!.id)).filter((m) => m.role === 'owner');
+  }
+  async function revokeDevice(d: MyDevice) {
+    manageError = '';
+    if (!confirm(`Sign out ${d.name || 'this device'}? It will stop getting data, and anything saved only on it stays there.`)) return;
+    try {
+      await ctx.svc.revokeMyDevice(d.id);
+      await loadDevices();
+    } catch (e) {
+      manageError = e instanceof Error ? e.message : 'Could not sign it out.';
+    }
+  }
+  async function removeProvider(m: MemberInfo) {
+    manageError = '';
+    if (!confirm(`Remove ${m.displayName ?? 'this provider'}? They lose access to every family.`)) return;
+    try {
+      await ctx.svc.removeProvider(m.user);
+      await loadStaff();
+    } catch (e) {
+      manageError = e instanceof Error ? e.message : 'Could not remove them.';
+    }
+  }
+
   onMount(async () => {
+    void loadDevices();
     if (!provider) return;
-    const st = ctx.app.st!;
-    staff = (await ctx.svc.members(st.staff!.id)).filter((m) => m.role === 'owner');
+    await loadStaff();
     const s = await ctx.svc.settings();
     requireApproval = s.requireApproval;
     hours = s.defaultInviteHours;
@@ -43,6 +78,18 @@
       ctx.home();
     } catch (e) {
       leaveError = e instanceof Error ? e.message : 'Could not leave';
+    }
+  }
+
+  async function saveNames() {
+    nameSaved = '';
+    try {
+      await ctx.svc.setBrand(daycareName, appNameField);
+      ctx.app.daycareName = daycareName.trim() || ctx.app.daycareName;
+      ctx.app.appName = appNameField.trim() || ctx.app.appName;
+      nameSaved = 'Saved. Parents see the new name too.';
+    } catch (e) {
+      nameSaved = e instanceof Error ? e.message : 'Could not save';
     }
   }
 
@@ -73,6 +120,15 @@
   <section class="card stack" aria-labelledby="me-h">
     <h2 id="me-h">This device</h2>
     <p class="muted">Signed in as <strong data-testid="my-name">{session?.displayName ?? 'you'}</strong></p>
+    <ul class="stack" style="list-style: none; padding: 0; margin: 0" aria-label="Devices signed in as you">
+      {#each devices.filter((d) => d.active) as d (d.id)}
+        <li class="row" data-testid="my-device">
+          <span class="grow">{d.name || 'A device'}{d.current ? ' (this one)' : ''}</span>
+          {#if !d.current}<button type="button" class="btn ghost danger" data-testid="revoke-device" onclick={() => revokeDevice(d)}>Sign out</button>{/if}
+        </li>
+      {/each}
+    </ul>
+    {#if manageError}<p class="err" role="alert">{manageError}</p>{/if}
     <button type="button" class="btn" data-testid="link-another" onclick={() => ctx.go({ name: 'showLinkCode' })}>Link another device</button>
   </section>
 
@@ -98,10 +154,19 @@
     <section class="card stack" aria-labelledby="st-h">
       <h2 id="st-h">Staff</h2>
       <ul class="stack" style="list-style: none; padding: 0; margin: 0">
-        {#each staff as m (m.user)}<li data-testid="staff-row">{m.displayName ?? 'Provider'}</li>{/each}
+        {#each staff as m (m.user)}
+          <li class="row" data-testid="staff-row"><span class="grow">{m.displayName ?? 'Provider'}</span>{#if m.user !== session?.user}<button type="button" class="btn ghost danger" data-testid="remove-provider" onclick={() => removeProvider(m)}>Remove</button>{/if}</li>
+        {/each}
       </ul>
       <button type="button" class="btn" data-testid="invite-provider" onclick={() => ctx.go({ name: 'staffInvite' })}>Invite a provider</button>
       <p class="small muted">New providers get access to every family automatically.</p>
+    </section>
+
+    <section class="card stack" aria-labelledby="nm-h">
+      <h2 id="nm-h">Daycare and app name</h2>
+      <label class="field">Daycare name<input type="text" maxlength="80" bind:value={daycareName} data-testid="daycare-name" /></label>
+      <label class="field">App name<input type="text" maxlength="40" bind:value={appNameField} data-testid="app-name" /></label>
+      <div class="row"><button type="button" class="btn" data-testid="save-names" onclick={saveNames}>Save</button><span class="muted" role="status" data-testid="names-saved">{nameSaved}</span></div>
     </section>
 
     <section class="card stack" aria-labelledby="sn-h">

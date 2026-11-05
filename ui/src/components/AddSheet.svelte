@@ -19,6 +19,8 @@
   const role = ctx.role();
   // svelte-ignore state_referenced_locally
   const edit = sheet.edit;
+  // svelte-ignore state_referenced_locally
+  const batch = sheet.batch && sheet.batch.length > 1 ? sheet.batch : undefined;
   const editKind: Kind | undefined = edit ? kindOf(edit) : undefined;
   const kids = $derived(ctx.app.children);
   const limit = edit && role === 'parent' ? dayRange(Number(edit.fields.at)) : undefined;
@@ -42,7 +44,7 @@
   let step = $state<'what' | 'who' | 'details'>(edit ? 'details' : 'what');
   let kind = $state<Kind | undefined>(editKind);
   // svelte-ignore state_referenced_locally
-  let selected = $state<string[]>(edit ? [String(f.child)] : [...(sheet.preset ?? [])]);
+  let selected = $state<string[]>(batch ? [...new Set(batch.map((e) => String(e.fields.child)))] : edit ? [String(f.child)] : [...(sheet.preset ?? [])]);
   // svelte-ignore state_referenced_locally
   const presetGiven = (sheet.preset?.length ?? 0) > 0;
   let atMs = $state<number | undefined>(edit ? Number(f.at) : undefined); // undefined means "now"
@@ -55,7 +57,7 @@
   let finishedTouched = $state(f.ozFinished !== undefined);
   let mealPeriod = $state(String(f.mealPeriod ?? 'lunch'));
   let served = $state(String(f.served ?? ''));
-  let amounts = $state<Record<string, string>>(edit && f.amount ? { [String(f.child)]: String(f.amount) } : {});
+  let amounts = $state<Record<string, string>>(batch ? Object.fromEntries(batch.filter((e) => e.fields.amount).map((e) => [String(e.fields.child), String(e.fields.amount)])) : edit && f.amount ? { [String(f.child)]: String(f.amount) } : {});
   let diaperNotes = $state<string[]>(Array.isArray(f.diaperNote) ? [...f.diaperNote] : []);
   // svelte-ignore state_referenced_locally
   let moreOpen = $state(diaperNotes.length > 0);
@@ -186,10 +188,11 @@
     try {
       const { fields, perChild } = fieldsFor(kind, extra);
       if (edit) {
-        await logger.edit(edit.id, { ...fields, ...(perChild?.[String(f.child)] ?? {}), at });
+        const all = batch ?? [edit];
+        for (const e of all) await logger.edit(e.id, { ...fields, ...(perChild?.[String(e.fields.child)] ?? {}), at });
         ctx.buzz();
         close();
-        ctx.showToast('Saved changes');
+        ctx.showToast(all.length > 1 ? `Saved changes for ${all.length} kids` : 'Saved changes');
         return;
       }
       const targets = targetsNow;
@@ -228,7 +231,7 @@
   const canSave = $derived(!!kind && step === 'details' && kind !== 'diaper' && (kind !== 'photo' || !!edit || files.length > 0));
   const targetsNow = $derived(selected.flatMap((id) => kids.filter((c) => c.id === id).map((c) => ({ id: c.id, space: c.space }))));
   const families = $derived(familyCount(targetsNow));
-  const title = $derived(edit ? `Edit ${label(kind!).toLowerCase()}` : step === 'what' ? 'Add to the day' : step === 'who' ? `Who? · ${label(kind!)}` : label(kind!));
+  const title = $derived(batch ? `Edit ${label(kind!).toLowerCase()} for ${batch.length} kids` : edit ? `Edit ${label(kind!).toLowerCase()}` : step === 'what' ? 'Add to the day' : step === 'who' ? `Who? · ${label(kind!)}` : label(kind!));
 </script>
 
 <button type="button" class="scrim" aria-label="Close" tabindex="-1" onclick={close}></button>
@@ -237,7 +240,7 @@
     {#if step !== 'what' && !edit}
       <button type="button" class="btn ghost" aria-label="Back" data-testid="sheet-back" onclick={back}>←</button>
     {/if}
-    <h2 id="sh-t" class="grow">{title}</h2>
+    <h2 id="sh-t" class="grow" data-testid="sheet-title">{title}</h2>
     <button type="button" class="btn ghost" aria-label="Close" data-testid="sheet-close" onclick={close}>✕</button>
   </header>
 

@@ -272,3 +272,38 @@ test('a parent can check in, post from home, delete their own and undo; and sees
   await expect(parent.getByTestId('tl-item').filter({ hasText: 'Slept' })).toHaveCount(1);
   await expect(provider.getByTestId('tl-item').filter({ hasText: 'Slept' })).toHaveCount(1);
 });
+
+test('batch: "Edit for all" fixes the shared details and each child’s own amount in one go', async ({ browser }) => {
+  const p = await newPage(browser);
+  await setupProvider(p);
+  await addFirstFamily(p, 'Lee', 'Ada');
+  await addChild(p, 'Ben', 1);
+  await toRoster(p);
+  await p.getByTestId('show-all').click();
+  await p.getByTestId('add-fab').click();
+  await p.getByTestId('tile-meal').click();
+  for (const n of ['Ada', 'Ben']) await p.getByTestId(`who-${n}`).click();
+  await p.getByTestId('who-next').click();
+  await p.getByTestId('served-input').fill('Mac and cheese');
+  await p.getByTestId('amount-Ben-some').click();
+  await p.getByTestId('details-save').click();
+  await expect(p.getByTestId('toast-text')).toHaveText('Logged for 2 kids');
+
+  // a single (unbatched) entry has no "all" option
+  await p.getByTestId('child-card').first().click();
+  await p.getByTestId('entry-menu').click();
+  await expect(p.getByTestId('menu-edit-all')).toHaveText('Edit for all 2 in batch');
+  await p.getByTestId('menu-edit-all').click();
+  await expect(p.getByTestId('sheet-title')).toContainText('2 kids');
+  await expect(p.getByTestId('amount-Ben-some')).toHaveAttribute('aria-pressed', 'true'); // each child's own amount is loaded
+  await p.getByTestId('served-input').fill('Pasta and peas');
+  await p.getByTestId('amount-Ben-most').click();
+  await p.getByTestId('details-save').click();
+  await expect(p.getByTestId('toast-text')).toHaveText('Saved changes for 2 kids');
+
+  const rows = (await entries(p)).filter((e) => e.kind === 'meal');
+  expect(rows).toHaveLength(2);
+  expect(rows.every((e) => e.served === 'Pasta and peas')).toBe(true);
+  expect(rows.map((e) => e.amount).sort()).toEqual(['all', 'most']);
+  expect(rows.every((e) => typeof e.editedAt === 'number')).toBe(true);
+});

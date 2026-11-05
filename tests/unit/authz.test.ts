@@ -43,7 +43,7 @@ describe('daycare-authz', () => {
     const r: AuthzBody = { obj: 'r1', op: 'create', type: 'daycare.reaction', fields: { createdBy: 'mom' } };
     expect((await run('mom-phone', c)).verdict).toBe('accept');
     expect((await run('mom-phone', r)).verdict).toBe('accept');
-    for (const type of ['daycare.child', 'daycare.settings', 'daycare.familyIndex', 'daycare.staffInvite', 'other.thing']) {
+    for (const type of ['daycare.child', 'daycare.settings', 'daycare.familyIndex', 'daycare.staffInvite', 'daycare.brand', 'other.thing']) {
       expect((await run('mom-phone', { obj: 'x', op: 'create', type, fields: {} })).verdict).toBe('reject');
     }
   });

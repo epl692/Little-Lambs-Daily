@@ -10,6 +10,8 @@ import type { Admin, BlobRef, JoinRequest, Obj, UiApi } from './types';
 export interface Sheet {
   preset?: string[];
   edit?: Entry;
+  /** Every entry logged together with `edit` (same batch), when the person chose "Edit for all". */
+  batch?: Entry[];
 }
 export interface Toast {
   id: number;
@@ -184,6 +186,13 @@ export function createApp(api: UiApi) {
       .sort((x, y) => x.name.localeCompare(y.name));
   }
   const stopKids = api.data.query({ type: 'daycare.child' }).subscribe((rows) => ((kidRows = rows), applyKids()));
+  // The daycare name a provider set, copied into each family Space so parents see it (providers read it from their settings).
+  const stopBrand = api.data.query({ type: 'daycare.brand' }).subscribe((rows) => {
+    const b = rows.find((r) => r.fields.daycareName || r.fields.appName);
+    if (!b) return;
+    if (b.fields.daycareName) app.daycareName = String(b.fields.daycareName);
+    if (b.fields.appName) app.appName = String(b.fields.appName);
+  });
   // Reactions and replies, grouped by the entry they belong to (live).
   const stopReactions = api.data.query({ type: 'daycare.reaction' }).subscribe((rows) => (app.reactions = Object.fromEntries(groupReactions(rows, me()))));
   const stopReplies = api.data.query({ type: 'daycare.comment' }).subscribe((rows) => (app.replies = Object.fromEntries(groupReplies(rows))));
@@ -261,6 +270,7 @@ export function createApp(api: UiApi) {
   function stop() {
     stopSync?.();
     stopKids();
+    stopBrand();
     stopNaps();
     stopReactions();
     stopReplies();

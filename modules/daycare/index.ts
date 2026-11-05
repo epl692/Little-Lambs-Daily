@@ -6,7 +6,7 @@ import { child } from './schema/child';
 import { comment } from './schema/comment';
 import { entry } from './schema/entry';
 import { reaction } from './schema/reaction';
-import { familyIndex, settings, staffInvite } from './schema/staff';
+import { brand, familyIndex, settings, staffInvite } from './schema/staff';
 
 /**
  * The single `daycare` module: every object type (SPEC 5) and one root view that mounts the Svelte UI. The UI never
@@ -18,7 +18,7 @@ export default {
   // The UI manages Spaces (invites, members, device linking) and reads every Space this device belongs to.
   access: { spaces: { read: 'any', write: 'any', manage: true } },
   provides: {
-    types: [child, entry, comment, reaction, settings, familyIndex, staffInvite],
+    types: [child, entry, comment, reaction, settings, familyIndex, staffInvite, brand],
     views: {
       root: (ctx) =>
         class DaycareRoot extends HTMLElement {

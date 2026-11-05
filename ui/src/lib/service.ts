@@ -12,6 +12,13 @@ export const isStaffSpace = (s: SpaceInfo) => !!s.name?.endsWith(STAFF_SUFFIX);
 export const isFamilySpace = (s: SpaceInfo) => !!s.name?.endsWith(FAMILY_SUFFIX);
 export const familyNameOf = (s: SpaceInfo) => (s.name ?? '').replace(new RegExp(`${FAMILY_SUFFIX}$`), '');
 
+export interface MyDevice {
+  id: string;
+  name?: string;
+  active: boolean;
+  current: boolean;
+}
+
 export type Mode = 'welcome' | 'provider' | 'parent';
 export interface AppState {
   mode: Mode;
@@ -126,6 +133,26 @@ export function createService(d: { admin: Admin; data: Data; now?: () => number;
     return { space };
   }
 
+  /** Put the daycare's name in every family Space I own, so parents see it. Safe to repeat. */
+  async function publishBrand(): Promise<void> {
+    const st = await settings();
+    if (!st.daycareName && !st.appName) return;
+    const fields = { daycareName: st.daycareName, appName: st.appName };
+    for (const sp of await admin.list()) {
+      if (!isFamilySpace(sp) || sp.myRole !== 'owner') continue;
+      const id = `brand:${sp.id}`;
+      const have = await data.get(id);
+      if (!have) await data.create(sp.id, 'daycare.brand', fields, { id });
+      else if (have.fields.daycareName !== fields.daycareName || have.fields.appName !== fields.appName) await data.update(id, fields);
+    }
+  }
+
+  /** Rename the daycare / app: saved in the Staff Space, then copied to every family. */
+  async function setBrand(daycareName: string, appName: string): Promise<void> {
+    await updateSettings({ daycareName: daycareName.trim(), appName: appName.trim() });
+    await publishBrand();
+  }
+
   /** A new, empty family Space, listed on the Families screen, with every other provider given access. */
   async function createFamilySpace(family: string): Promise<SpaceInfo> {
     const staff = await staffSpace();
@@ -133,6 +160,7 @@ export function createService(d: { admin: Admin; data: Data; now?: () => number;
     const space = await admin.create(`${family}${FAMILY_SUFFIX}`);
     await data.create(staff.id, 'daycare.familyIndex', { spaceId: space.id, familyName: family, archived: false });
     await reconcileStaff(); // other providers get access to the new family
+    await publishBrand().catch(() => undefined); // parents of this family see the daycare name from day one
     return space;
   }
 
@@ -199,6 +227,31 @@ export function createService(d: { admin: Admin; data: Data; now?: () => number;
   const leaveFamily = (space: string) => admin.leave(space);
   const removeMember = (space: string, user: string) => admin.remove(space, user);
   const revokeDevice = (device: string) => admin.revokeDevice(device);
+
+  /** The devices signed in as me (the framework only lets a person revoke their own), this one marked. */
+  async function myDevices(): Promise<MyDevice[]> {
+    const me = admin.session();
+    if (!me) return [];
+    const space = (await admin.list())[0];
+    const rec = space ? (await admin.members(space.id)).find((m) => m.user === me.user) : undefined;
+    const list = rec?.devices ?? [{ id: me.device.deviceId, name: me.device.name, active: true }];
+    return list.map((d) => ({ id: d.id, name: d.name, active: d.active, current: d.id === me.device.deviceId }));
+  }
+
+  /** Sign one of my other devices out: it stops receiving data and the Spaces rotate their keys. */
+  async function revokeMyDevice(id: string): Promise<void> {
+    if (id === admin.session()?.device.deviceId) throw new Error('Use Leave to sign this device out');
+    await admin.revokeDevice(id);
+  }
+
+  /** Remove another provider: out of the Staff Space and every family Space. */
+  async function removeProvider(user: string): Promise<void> {
+    if (user === admin.session()?.user) throw new Error('You cannot remove yourself');
+    for (const sp of await admin.list()) {
+      if (sp.myRole !== 'owner') continue;
+      if ((await admin.members(sp.id)).some((m) => m.user === user)) await admin.remove(sp.id, user);
+    }
+  }
 
   async function linkAnotherDevice() {
     return admin.linkDevice();
@@ -302,7 +355,7 @@ export function createService(d: { admin: Admin; data: Data; now?: () => number;
 
   return {
     state, settings, updateSettings, setupProvider, addFamily, addChild, children,
-    createFamilySpace, inviteParent, pendingInvites, revokeInvite, acceptInvite, members, leaveFamily, removeMember, revokeDevice,
+    createFamilySpace, publishBrand, setBrand, inviteParent, pendingInvites, revokeInvite, acceptInvite, members, leaveFamily, removeMember, myDevices, revokeMyDevice, removeProvider, revokeDevice,
     linkAnotherDevice, joinAsDevice, inviteProvider, reconcileStaff, acceptHandoffs, startStaffSync,
   };
 }

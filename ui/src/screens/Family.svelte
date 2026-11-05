@@ -46,7 +46,7 @@
     pending = ctx.svc.pendingInvites(space);
   }
   async function remove(m: MemberInfo) {
-    if (!confirm(`Remove ${m.displayName ?? 'this person'} from this family?`)) return;
+    if (!confirm(`Remove ${m.displayName ?? 'this person'} from this family? Their phones stop getting this family’s days right away. You can invite them again later.`)) return;
     await ctx.svc.removeMember(space, m.user);
     await loadMembers();
   }
@@ -79,7 +79,7 @@
       {#each parents as m (m.user)}
         <li class="row">
           <span class="grow" data-testid="parent-row">{m.displayName ?? 'Parent'}</span>
-          {#if m.user !== me}<button type="button" class="btn ghost danger" onclick={() => remove(m)}>Remove</button>{/if}
+          {#if m.user !== me}<button type="button" class="btn ghost danger" data-testid="remove-parent" onclick={() => remove(m)}>Remove</button>{/if}
         </li>
       {:else}
         <li class="muted">No one has joined yet</li>

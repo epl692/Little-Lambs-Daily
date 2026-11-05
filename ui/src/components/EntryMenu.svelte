@@ -4,6 +4,13 @@
 
   let { ctx, entry }: { ctx: App; entry: Entry } = $props();
   let open = $state(false);
+  // Entries logged together (one tap for several children) can be edited together. Providers only: a parent's entries are single.
+  let batch = $state.raw<Entry[]>([]);
+  $effect(() => {
+    const id = entry.fields.batchId;
+    if (!open || !id || ctx.role() !== 'provider' || entry.fields.kind === 'nap') return void (batch = []);
+    void ctx.api.data.query({ type: 'daycare.entry', where: (o) => o.fields.batchId === id }).once().then((rows) => (batch = rows.length > 1 ? rows : []));
+  });
   const text = $derived(String(entry.fields.text ?? '') || summary(entry));
 
   async function del() {
@@ -17,6 +24,7 @@
     }
   }
   const edit = () => ((open = false), ctx.openAdd({ edit: entry }));
+  const editAll = () => ((open = false), ctx.openAdd({ edit: entry, batch }));
   async function copy() {
     open = false;
     try {
@@ -34,6 +42,7 @@
     <button type="button" class="away" tabindex="-1" aria-label="Close menu" onclick={() => (open = false)}></button>
     <ul class="menu card" role="menu">
       <li role="none"><button type="button" role="menuitem" data-testid="menu-edit" onclick={edit}>Edit</button></li>
+      {#if batch.length > 1}<li role="none"><button type="button" role="menuitem" data-testid="menu-edit-all" onclick={editAll}>Edit for all {batch.length} in batch</button></li>{/if}
       {#if text}<li role="none"><button type="button" role="menuitem" data-testid="menu-copy" onclick={copy}>Copy text</button></li>{/if}
       <li role="none"><button type="button" role="menuitem" class="danger" data-testid="menu-delete" onclick={del}>Delete</button></li>
     </ul>

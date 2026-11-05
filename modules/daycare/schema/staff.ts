@@ -52,3 +52,21 @@ export const staffInvite: ObjectTypeDef = {
     },
   ],
 };
+
+/**
+ * The daycare's name as parents see it. One per family Space (id brand:<space>), written by providers only; the Staff Space copy in
+ * the settings object is the source. Parents cannot read the Staff Space, so without this they would only ever see the built-in name.
+ */
+export const brand: ObjectTypeDef = {
+  name: 'brand',
+  label: 'Daycare name',
+  versions: [
+    {
+      version: 1,
+      fields: {
+        daycareName: { type: 'string', maxLength: 80 },
+        appName: { type: 'string', maxLength: 40 },
+      },
+    },
+  ],
+};
