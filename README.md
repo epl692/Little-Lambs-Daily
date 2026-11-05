@@ -38,4 +38,4 @@ See SPEC.md section 10. `modules/daycare` is the framework module, `ui/` the Sve
 
 ## Status
 
-Phases 1 to 6 done: scaffold, data layer and authz, onboarding and pairing, roster and timeline, the add flow (check-in/out, naps with timers, bottles, snacks, meals, diapers, notes, from-home, batch logging, undo, edit and delete), and reactions and threaded replies. Next: phase 7 (photos).
+Phases 1 to 7 done: scaffold, data layer and authz, onboarding and pairing, roster and timeline, the add flow (check-in/out, naps with timers, bottles, snacks, meals, diapers, notes, from-home, batch logging, undo, edit and delete), reactions and threaded replies, and photos (compressed, metadata stripped, one copy per family). Next: phase 8 (parent experience polish). Photos need the relay to keep blobs: set `BLOB_DIR` (the Docker compose file does).

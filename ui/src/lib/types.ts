@@ -87,11 +87,29 @@ export interface UiBridge {
   qrToSvg?: (text: string) => string;
 }
 
+/** A stored reference to an attachment (an ordinary field value). */
+export interface BlobRef {
+  $blob: 1;
+  id: string;
+  size: number;
+  type: string;
+  name?: string;
+  [k: string]: unknown;
+}
+/** The slice of `ctx.blobs` the UI uses. */
+export interface BlobsApi {
+  attach(source: Blob, opts: { space: string; obj: string; name?: string; type?: string }): Promise<BlobRef>;
+  /** Decrypted bytes; starts the download when the blob is not on this device yet. */
+  toBlob(ref: BlobRef): Promise<Blob>;
+  pin?(ref: BlobRef): Promise<void>;
+}
+
 /** What the daycare module hands mount(). */
 export interface UiApi {
   appName: string;
   daycareName: string;
   data: Data;
+  blobs?: BlobsApi;
   spaces: { admin?: Admin };
   bridge: UiBridge;
   [capability: string]: unknown;

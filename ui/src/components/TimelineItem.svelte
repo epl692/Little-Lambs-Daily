@@ -3,6 +3,7 @@
   import type { App } from '../lib/app.svelte';
   import { fmtDateLong, HOUR } from '../lib/time';
   import EntryMenu from './EntryMenu.svelte';
+  import PhotoGrid from './PhotoGrid.svelte';
   import ReactionBar from './ReactionBar.svelte';
   import Thread from './Thread.svelte';
 
@@ -40,6 +41,7 @@
     </header>
     {#if summary(entry)}<p class="sum" data-testid="tl-summary">{summary(entry)}</p>{/if}
     {#if f.text}<p class="txt">{f.text}</p>{/if}
+    {#if kind === 'photo'}<PhotoGrid {ctx} {entry} who={childName} />{/if}
     {#if open && canWake}<button type="button" class="btn wake" data-testid="wake" onclick={wake}>☀️ Woke up</button>{/if}
     {#if long}<p class="hint">Still sleeping? This nap is over 3 hours.</p>{/if}
     <ReactionBar {ctx} {entry} />

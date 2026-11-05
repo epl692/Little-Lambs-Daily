@@ -1,8 +1,9 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
   import type { App, Sheet } from '../lib/app.svelte';
   import { KIND_META, kindOf, type Kind } from '../lib/format';
   import { guessMealPeriod, kindsFor, noteKindFor } from '../lib/log';
+  import { familyCount, preparePhoto, type Prepared } from '../lib/photos';
   import { byChild, childStatus } from '../lib/timeline';
   import { fmtTime, fromDateTimeInput, toDateTimeInput } from '../lib/time';
   import Avatar from './Avatar.svelte';
@@ -22,7 +23,7 @@
 
   /** Note is one tile; its kind depends on who is writing. */
   type Tile = Kind | 'note';
-  const tileKinds: Tile[] = role === 'provider' ? ['checkin', 'checkout', 'nap', 'bottle', 'snack', 'meal', 'diaper', 'note'] : ['checkin', 'checkout', 'home', 'note'];
+  const tileKinds: Tile[] = role === 'provider' ? ['checkin', 'checkout', 'nap', 'bottle', 'snack', 'meal', 'diaper', 'photo', 'note'] : ['checkin', 'checkout', 'home', 'note'];
   const realKind = (t: Tile): Kind => (t === 'note' ? noteKindFor(role) : t);
   const allowed = kindsFor(role);
 
@@ -61,6 +62,11 @@
   let homeKind = $state(String(f.homeKind ?? 'slept'));
   let mood = $state(String(f.mood ?? ''));
   let busy = $state(false);
+  // photos: picked first, shrunk on this device, then tagged to children
+  let files = $state<Array<Prepared & { url: string }>>([]);
+  let preparing = $state(false);
+  let progress = $state('');
+  let fileInput: HTMLInputElement | undefined = $state();
   let error = $state('');
   let dialog: HTMLDivElement | undefined = $state();
 
@@ -88,8 +94,37 @@
   }
   const byChips = $derived([...new Set([...logger.recent('by'), defaultBy()].filter(Boolean))]);
 
-  function pickTile(t: Tile) {
+  async function picked(list: FileList | null) {
+    if (!list || list.length === 0) return;
+    error = '';
+    preparing = true;
+    try {
+      const room = 12 - files.length;
+      const next: Array<Prepared & { url: string }> = [];
+      for (const file of [...list].slice(0, room)) {
+        progress = `Preparing photo ${files.length + next.length + 1}…`;
+        const p = await preparePhoto(file);
+        next.push({ ...p, url: URL.createObjectURL(p.thumb) });
+      }
+      files = [...files, ...next];
+      if (kind !== 'photo') pickTile('photo', true);
+    } catch (e) {
+      error = e instanceof Error ? e.message : 'Could not read that photo';
+    } finally {
+      preparing = false;
+      progress = '';
+      if (fileInput) fileInput.value = '';
+    }
+  }
+  const removeFile = (i: number) => {
+    URL.revokeObjectURL(files[i]!.url);
+    files = files.filter((_, j) => j !== i);
+  };
+  onDestroy(() => files.forEach((f) => URL.revokeObjectURL(f.url)));
+
+  function pickTile(t: Tile, haveFiles = false) {
     const k = realKind(t);
+    if (k === 'photo' && !haveFiles) return void fileInput?.click(); // the picker opens first (SPEC 6.5)
     kind = k;
     const last = logger.last(k);
     if (k === 'bottle') {
@@ -153,7 +188,14 @@
         ctx.showToast('Saved changes');
         return;
       }
-      const targets = selected.flatMap((id) => kids.filter((c) => c.id === id).map((c) => ({ id: c.id, space: c.space })));
+      const targets = targetsNow;
+      if (kind === 'photo') {
+        const { ids } = await ctx.photos.post({ targets, photos: files, text, at, onProgress: (d, t) => (progress = `Saving ${d} of ${t}…`) });
+        ctx.buzz();
+        close();
+        ctx.showToast(targets.length > 1 ? `Posted for ${targets.length} kids` : `Posted ${files.length === 1 ? 'a photo' : `${files.length} photos`} of ${nameOf(selected[0]!)}`, () => logger.undo(ids));
+        return;
+      }
       const { ids } = await logger.log({ kind, targets, at, fields, perChild });
       // remember for next time
       if (kind === 'bottle') logger.remember('bottle', { bottleContents, ozOffered });
@@ -182,7 +224,9 @@
     queueMicrotask(() => dialog?.querySelector<HTMLElement>('[data-autofocus], .tile, .who-chip, .btn.primary')?.focus());
   });
 
-  const canSave = $derived(!!kind && step === 'details' && kind !== 'diaper');
+  const canSave = $derived(!!kind && step === 'details' && kind !== 'diaper' && (kind !== 'photo' || !!edit || files.length > 0));
+  const targetsNow = $derived(selected.flatMap((id) => kids.filter((c) => c.id === id).map((c) => ({ id: c.id, space: c.space }))));
+  const families = $derived(familyCount(targetsNow));
   const title = $derived(edit ? `Edit ${label(kind!).toLowerCase()}` : step === 'what' ? 'Add to the day' : step === 'who' ? `Who? · ${label(kind!)}` : label(kind!));
 </script>
 
@@ -196,7 +240,9 @@
     <button type="button" class="btn ghost" aria-label="Close" data-testid="sheet-close" onclick={close}>✕</button>
   </header>
 
+  <input type="file" accept="image/*" multiple class="hidden" bind:this={fileInput} data-testid="photo-input" onchange={(e) => picked(e.currentTarget.files)} />
   <div class="body stack">
+    {#if preparing}<p class="muted" role="status" data-testid="photo-progress">{progress}</p>{/if}
     {#if step === 'what'}
       <div class="tiles" role="group" aria-label="What happened?">
         {#each tileKinds.filter((t) => allowed.includes(realKind(t))) as t (t)}
@@ -289,6 +335,24 @@
             </div>
           {/each}
         </div>
+      {:else if kind === 'photo'}
+        {#if !edit}
+          <div class="thumbs" data-testid="photo-previews">
+            {#each files as f, i (f.url)}
+              <div class="pv">
+                <img src={f.url} alt="Selected photo {i + 1}" />
+                <button type="button" class="x" aria-label="Remove photo {i + 1}" data-testid="photo-remove" onclick={() => removeFile(i)}>✕</button>
+              </div>
+            {/each}
+            {#if files.length < 12}
+              <button type="button" class="pv addmore" aria-label="Add more photos" data-testid="photo-more" disabled={preparing} onclick={() => fileInput?.click()}>＋</button>
+            {/if}
+          </div>
+          {#if families > 1}<p class="warn" role="note" data-testid="families-warning">Visible to {families} families</p>{/if}
+        {/if}
+        <label class="field">Caption (optional)
+          <textarea bind:value={text} maxlength="2000" data-testid="photo-caption"></textarea>
+        </label>
       {:else if kind === 'diaper'}
         <div class="diapers" role="group" aria-label="Diaper">
           {#each DIAPERS as [v, l] (v)}
@@ -327,13 +391,20 @@
   {:else if canSave}
     <footer class="foot">
       <button type="button" class="btn primary big" disabled={busy} data-testid="details-save" onclick={() => save()}>
-        {busy ? 'Saving…' : edit ? 'Save changes' : kind === 'nap' && napMode === 'start' ? 'Start nap' : 'Save'}
+        {busy ? progress || 'Saving…' : edit ? 'Save changes' : kind === 'nap' && napMode === 'start' ? 'Start nap' : 'Save'}
       </button>
     </footer>
   {/if}
 </div>
 
 <style>
+  .hidden { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+  .thumbs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .pv { position: relative; aspect-ratio: 1; border-radius: 10px; overflow: hidden; background: var(--bg); padding: 0; border: 1px solid var(--line); }
+  .pv img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .x { position: absolute; top: 2px; right: 2px; width: 28px; height: 28px; border: 0; border-radius: 50%; background: rgb(0 0 0 / 60%); color: #fff; cursor: pointer; }
+  .addmore { font-size: 1.5rem; color: var(--muted); cursor: pointer; }
+  .warn { margin: 0; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--warn); color: var(--warn); font-weight: 600; }
   .scrim { position: fixed; inset: 0; background: rgb(0 0 0 / 50%); border: 0; z-index: 40; cursor: default; }
   .sheet { position: fixed; left: 50%; transform: translateX(-50%); bottom: 0; width: 100%; max-width: 640px; max-height: 88vh; display: flex; flex-direction: column; background: var(--surface); color: var(--text); border-radius: 20px 20px 0 0; box-shadow: 0 -8px 30px rgb(0 0 0 / 25%); z-index: 41; animation: up 0.18s ease-out; }
   @keyframes up { from { transform: translate(-50%, 24px); opacity: 0; } }

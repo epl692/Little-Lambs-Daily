@@ -10,7 +10,7 @@ export default defineConfig({
   reporter: [['list']],
   use: { baseURL: 'http://localhost:4180', trace: 'retain-on-failure', screenshot: 'only-on-failure' },
   webServer: [
-    { command: 'npm run relay', port: 8787, reuseExistingServer: true, timeout: 60_000, stdout: 'ignore', stderr: 'pipe' },
+    { command: 'npm run relay', port: 8787, reuseExistingServer: true, env: { BLOB_DIR: './test-results/relay-blobs' }, timeout: 60_000, stdout: 'ignore', stderr: 'pipe' },
     { command: 'node scripts/serve.mjs', url: 'http://localhost:4180', reuseExistingServer: true, timeout: 30_000 },
   ],
 });

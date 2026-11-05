@@ -62,6 +62,8 @@ export const entry: ObjectTypeDef = {
         diaper: { type: 'enum', values: DIAPERS },
         diaperNote: { type: 'list', of: 'string', maxItems: DIAPER_NOTES.length, check: (v) => (v.every((x) => (DIAPER_NOTES as readonly unknown[]).includes(x)) ? undefined : 'unknown diaper note') },
         photos: { type: 'list', of: 'blob', maxItems: 12, accept: ['image/*'], maxBytes: 20 * MB },
+        // Small previews, same order as `photos`: the grid loads these and the full image only on tap.
+        thumbs: { type: 'list', of: 'blob', maxItems: 12, accept: ['image/*'], maxBytes: 2 * MB },
         text: { type: 'string', maxLength: 2000 },
         homeKind: { type: 'enum', values: HOME_KINDS },
         mood: { type: 'enum', values: MOODS },

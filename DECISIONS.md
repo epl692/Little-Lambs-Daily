@@ -152,6 +152,25 @@ All onboarding logic is `ui/src/lib/service.ts`, tested on real encrypted nodes.
 - **Reply undo:** sending shows an Undo toast (removes the reply); deleting shows one that restores it.
 - **Deferred:** a "Reply" count on collapsed cards is shown, but notifications of new replies are not (no push in this app).
 
+## D-015 Photos (phase 7)
+- **Pipeline** (`ui/src/lib/photos.ts`): the picker opens first (Photo tile → system camera/gallery, multi-select, up to 12), each
+  image is re-drawn on a canvas at ≤2048px long edge, JPEG q0.82, with EXIF orientation applied to the pixels first. Redrawing
+  drops all metadata (EXIF, GPS, camera make); an e2e test plants a fake GPS/Make segment and checks it is gone from the stored blob.
+- **Thumbnails:** SPEC says "thumbnails first, full image on tap" but the schema had one blob per photo, so `daycare.entry` gained
+  an optional `thumbs` list (480px, q0.7, same order as `photos`). The grid loads only thumbnails; the viewer loads the full image.
+- **One entry per child, one copy per Space:** each entry gets its own attachments made in that child's Space with the entry's id
+  (allocated first and passed to `create({ id })`). Siblings in one family still get their own entry and attachment (deduped by the
+  framework). All or nothing; Undo removes every entry. A warning chip shows "Visible to N families" when the children span
+  more than one Space.
+- **Rendering:** the UI fetches with `blobs.toBlob(ref)` into an object URL (the CSP allows `blob:` images) rather than `<sync-blob>`:
+  that element waits for a tap on "Download", which is wrong for a photo grid. Failed loads show "Tap to retry".
+- **Viewer:** full screen, arrows, swipe, Escape, Save (download link). Photos are providers-only (parents have no Photo tile and
+  the validator already refuses them).
+- **Relay needs `BLOB_DIR`:** photos did not reach the second device through a relay without blob storage. The Docker compose file
+  sets it; the e2e relay now does too (`playwright.config.ts`). Treat it as required for photos.
+- **Deferred:** caption-only edits (photos can't be added or removed after posting), pinning today's photos on provider devices,
+  eviction tuning, ZIP export of photos (phase 9), per-photo delete, a "photos downloading" indicator beyond the placeholder.
+
 ## Open items (SPEC 13) — assumptions so far
 1. Names/colors: defaults from spec (`APP_NAME`, `DAYCARE_NAME`, accent `#14B8A6`).
 2. Since-last threshold: 3h.

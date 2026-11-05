@@ -1,9 +1,10 @@
 import type { Entry } from './format';
 import { createLogger, type Actor, type Logger } from './log';
 import { createService, type AppState, type Service } from './service';
+import { createPhotoLogger, type PhotoLogger } from './photos';
 import { createThreads, groupReactions, groupReplies, type ReactionPill, type Reply, type Threads } from './threads';
 import { dayRange } from './time';
-import type { Admin, JoinRequest, UiApi } from './types';
+import type { Admin, BlobRef, JoinRequest, UiApi } from './types';
 
 /** The add sheet: open for these children (skipping the "who" step), or editing an existing entry. */
 export interface Sheet {
@@ -71,6 +72,8 @@ export function createApp(api: UiApi) {
     /** Reaction pills and thread replies by entry id (live, every entry on this device). */
     reactions: {} as Record<string, ReactionPill[]>,
     replies: {} as Record<string, Reply[]>,
+    /** The full-screen photo viewer. */
+    viewer: undefined as { photos: BlobRef[]; index: number; title: string } | undefined,
     /** The "who reacted" sheet. */
     whoReacted: undefined as { entry: string; space: string } | undefined,
     sheet: undefined as Sheet | undefined,
@@ -201,6 +204,7 @@ export function createApp(api: UiApi) {
   };
   const logger: Logger = createLogger({ data: api.data, actor });
   const threads: Threads = createThreads({ data: api.data, actor });
+  const photos: PhotoLogger = createPhotoLogger({ data: api.data, blobs: () => api.blobs, actor });
   const role = () => actor().role;
   function me() {
     return admin.session()?.user ?? '';
@@ -255,7 +259,7 @@ export function createApp(api: UiApi) {
     removeApprover();
   }
 
-  return { app, svc, api, logger, threads, nameOf, role, me, refresh, go, back, home, start, stop, showToast, dismissToast, openAdd, closeAdd, buzz };
+  return { app, svc, api, logger, threads, photos, nameOf, role, me, refresh, go, back, home, start, stop, showToast, dismissToast, openAdd, closeAdd, buzz };
 }
 
 export type App = ReturnType<typeof createApp>;

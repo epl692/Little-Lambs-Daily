@@ -14,8 +14,8 @@ export interface Actor {
 }
 export type KV = Pick<Storage, 'getItem' | 'setItem'>;
 
-/** What each role may log. (Photo joins the provider list with attachments in a later phase.) */
-export const PROVIDER_KINDS: readonly Kind[] = ['checkin', 'checkout', 'nap', 'bottle', 'snack', 'meal', 'diaper', 'providerNote'];
+/** What each role may log. */
+export const PROVIDER_KINDS: readonly Kind[] = ['checkin', 'checkout', 'nap', 'bottle', 'snack', 'meal', 'diaper', 'photo', 'providerNote'];
 export const PARENT_KINDS: readonly Kind[] = ['checkin', 'checkout', 'home', 'familyNote'];
 export const kindsFor = (role: Role): readonly Kind[] => (role === 'provider' ? PROVIDER_KINDS : PARENT_KINDS);
 export const noteKindFor = (role: Role): Kind => (role === 'provider' ? 'providerNote' : 'familyNote');

@@ -17,6 +17,7 @@
   import Welcome from './screens/Welcome.svelte';
   import AddSheet from './components/AddSheet.svelte';
   import ApprovalDialog from './components/ApprovalDialog.svelte';
+  import PhotoViewer from './components/PhotoViewer.svelte';
   import Snackbar from './components/Snackbar.svelte';
   import WhoReacted from './components/WhoReacted.svelte';
 
@@ -67,6 +68,9 @@
 
 {#if ctx.app.sheet}
   {#key ctx.app.sheet}<AddSheet {ctx} sheet={ctx.app.sheet} />{/key}
+{/if}
+{#if ctx.app.viewer}
+  <PhotoViewer {ctx} />
 {/if}
 {#if ctx.app.whoReacted}
   <WhoReacted {ctx} entry={ctx.app.whoReacted.entry} space={ctx.app.whoReacted.space} />
