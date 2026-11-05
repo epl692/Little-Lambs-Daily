@@ -91,4 +91,39 @@ describe('photo logger', () => {
   it('counts the families a photo will be visible to', () => {
     expect(familyCount([{ id: 'a', space: 'S1' }, { id: 'b', space: 'S1' }, { id: 'c', space: 'S2' }])).toBe(2);
   });
+
+  describe('changing the photos of a posted entry', () => {
+    const entry = (n: number, thumbs = true) => ({
+      id: 'e1',
+      space: 'S1',
+      fields: { photos: Array.from({ length: n }, (_, i) => ({ id: `p${i}` })), ...(thumbs ? { thumbs: Array.from({ length: n }, (_, i) => ({ id: `t${i}` })) } : {}) },
+    });
+    it('keeps the chosen ones in order, adds new ones in the entry’s own Space, and keeps previews lined up', async () => {
+      const { log, attached } = setup();
+      const r = await log.change({ entry: entry(3), keep: [2, 0], add: prepared(1) });
+      expect((r.photos as Array<{ id: string }>).slice(0, 2).map((p) => p.id)).toEqual(['p0', 'p2']);
+      expect(r.photos).toHaveLength(3);
+      expect((r.thumbs as Array<{ id: string }>).slice(0, 2).map((p) => p.id)).toEqual(['t0', 't2']);
+      expect(r.thumbs).toHaveLength(3);
+      expect(attached).toHaveLength(2); // the new photo and its preview
+      expect(attached.every((a) => a.space === 'S1' && a.obj === 'e1')).toBe(true);
+    });
+    it('drops previews that no longer line up rather than showing the wrong ones', async () => {
+      const { log } = setup();
+      expect((await log.change({ entry: entry(2, false), keep: [0, 1], add: [] })).thumbs).toBeNull();
+      expect((await log.change({ entry: entry(2, false), keep: [0], add: prepared(1) })).thumbs).toBeNull();
+    });
+    it('needs at least one photo and at most twelve; only providers', async () => {
+      const { log } = setup();
+      await expect(log.change({ entry: entry(2), keep: [], add: [] })).rejects.toThrow(/at least one photo/);
+      await expect(log.change({ entry: entry(10), keep: [...Array(10).keys()], add: prepared(3) })).rejects.toThrow(/At most 12/);
+      const parent = setup({ user: 'mom', name: 'Mom', role: 'parent' });
+      await expect(parent.log.change({ entry: entry(2), keep: [0], add: [] })).rejects.toThrow(/Only providers/);
+    });
+    it('ignores positions that are not there', async () => {
+      const { log } = setup();
+      const r = await log.change({ entry: entry(2), keep: [0, 9, -1], add: [] });
+      expect(r.photos).toHaveLength(1);
+    });
+  });
 });

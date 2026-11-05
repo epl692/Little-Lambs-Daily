@@ -69,7 +69,7 @@
     <section class="card stack" aria-labelledby="fm-h">
       <h2 id="fm-h">Family members</h2>
       <ul class="stack" style="list-style: none; padding: 0; margin: 0">
-        {#each members.filter((m) => m.role === 'editor') as m (m.user)}<li data-testid="profile-member">{m.displayName ?? 'Parent'}</li>{/each}
+        {#each members.filter((m) => m.role === 'editor') as m (m.user)}<li data-testid="profile-member">{ctx.display(m.user, m.displayName ?? 'Parent')}</li>{/each}
       </ul>
     </section>
   {:else}

@@ -59,9 +59,9 @@
         <ul class="list">
           {#each replies as r (r.id)}
             <li class="reply" data-testid="reply">
-              <Avatar id={r.createdBy} name={r.createdByName} size={24} />
+              <Avatar id={r.createdBy} name={ctx.display(r.createdBy, r.createdByName)} size={24} />
               <div class="grow">
-                <div class="who"><strong>{r.createdByName}{roleMark(r)}</strong> <span class="muted">{fmtTimeShort(r.at)}{#if r.editedAt}{' · edited'}{/if}</span></div>
+                <div class="who"><strong>{ctx.display(r.createdBy, r.createdByName)}{roleMark(r)}</strong> <span class="muted">{fmtTimeShort(r.at)}{#if r.editedAt}{' · edited'}{/if}</span></div>
                 {#if editing === r.id}
                   <textarea class="edit" rows="2" maxlength="2000" aria-label="Edit reply" data-testid="reply-edit-input" bind:value={editText}></textarea>
                   <div class="row">

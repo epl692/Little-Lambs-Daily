@@ -130,3 +130,44 @@ test('settings: the "since" reminder threshold is saved and the version is shown
   await expect(parent.getByTestId('since-threshold')).toHaveCount(0);
   await expect(parent.getByTestId('about')).toContainText('v0.10.0');
 });
+
+test('photos posted offline reach the parent after reconnecting, thumbnails and full size', async ({ browser }) => {
+  const provider = await newPage(browser);
+  await setupProvider(provider);
+  await addFirstFamily(provider, 'Lee', 'Ada');
+  const parent = await pairParent(provider, browser, 'Erin');
+  await provider.getByRole('button', { name: /back/i }).click();
+  await provider.getByTestId('show-all').click();
+  await expect(provider.getByTestId('sync-pill')).toContainText('Synced', { timeout: 30_000 });
+
+  const picture = (shade: number) =>
+    provider.evaluate(async (shade) => {
+      const c = document.createElement('canvas');
+      c.width = 1200;
+      c.height = 800;
+      const g = c.getContext('2d')!;
+      g.fillStyle = `hsl(${shade}, 60%, 60%)`;
+      g.fillRect(0, 0, 1200, 800);
+      const buf = new Uint8Array(await (await new Promise<Blob>((r) => c.toBlob((x) => r(x!), 'image/jpeg', 0.9))).arrayBuffer());
+      let s = '';
+      for (const x of buf) s += String.fromCharCode(x);
+      return btoa(s);
+    }, shade);
+  const shots = await Promise.all([20, 120, 220].map(async (h) => Buffer.from(await picture(h), 'base64')));
+
+  await provider.context().setOffline(true); // airplane mode
+  await expect(provider.getByTestId('sync-pill')).toContainText('Offline');
+  await provider.getByTestId('quick-add').click();
+  const [chooser] = await Promise.all([provider.waitForEvent('filechooser'), provider.getByTestId('tile-photo').click()]);
+  await chooser.setFiles(shots.map((buffer, i) => ({ name: `offline-${i}.jpg`, mimeType: 'image/jpeg', buffer })));
+  await expect(provider.getByTestId('photo-previews').locator('img')).toHaveCount(3, { timeout: 30_000 });
+  await provider.getByTestId('details-save').click();
+  await expect(provider.getByTestId('toast-text')).toContainText('Posted 3 photos', { timeout: 30_000 });
+  await expect(parent.getByTestId('tl-item')).toHaveCount(0);
+
+  await provider.context().setOffline(false);
+  await expect(parent.getByTestId('photo-open')).toHaveCount(3, { timeout: 60_000 });
+  await expect(parent.getByTestId('photo-grid').getByTestId('photo-img')).toHaveCount(3, { timeout: 120_000 });
+  await parent.getByTestId('photo-open').first().click();
+  await expect(parent.getByTestId('photo-viewer').getByTestId('photo-img')).toBeVisible({ timeout: 60_000 });
+});

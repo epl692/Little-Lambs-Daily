@@ -116,7 +116,36 @@ export function createPhotoLogger(d: { data: Data; blobs: () => BlobsLike | unde
     return { ids, batchId };
   }
 
-  return { post };
+  /**
+   * Change which photos a posted entry has: keep some of the current ones (by position), add new ones. Returns the `photos` and
+   * `thumbs` fields to save (thumbs is null when the previews no longer line up with the photos; the grid then shows the full images).
+   * New photos are attached in the entry's own Space under its id. The caller saves the fields with the rest of the edit.
+   */
+  async function change(input: { entry: { id: string; space: string; fields: Record<string, any> }; keep: number[]; add: Prepared[]; onProgress?: (done: number, total: number) => void }) {
+    const a = d.actor();
+    if (a.role !== 'provider') throw new Error('Only providers change photos');
+    // plain copies: the entry may come from reactive UI state, whose proxies the database cannot store
+    const plain = <T>(v: T): T => JSON.parse(JSON.stringify(v));
+    const cur: unknown[] = Array.isArray(input.entry.fields.photos) ? plain(input.entry.fields.photos) : [];
+    const curThumbs: unknown[] = Array.isArray(input.entry.fields.thumbs) ? plain(input.entry.fields.thumbs) : [];
+    const keep = [...new Set(input.keep)].filter((i) => i >= 0 && i < cur.length).sort((x, y) => x - y);
+    if (keep.length + input.add.length === 0) throw new Error('A photo post needs at least one photo. Delete the entry instead.');
+    if (keep.length + input.add.length > MAX_PHOTOS) throw new Error(`At most ${MAX_PHOTOS} photos`);
+    const blobs = d.blobs();
+    if (input.add.length > 0 && !blobs) throw new Error('Photos are not available on this device');
+    const photos = keep.map((i) => cur[i]);
+    const aligned = curThumbs.length === cur.length;
+    const thumbs = aligned ? keep.map((i) => curThumbs[i]) : [];
+    let done = 0;
+    for (const p of input.add) {
+      photos.push(await blobs!.attach(p.full, { space: input.entry.space, obj: input.entry.id, name: p.name, type: 'image/jpeg' }));
+      thumbs.push(await blobs!.attach(p.thumb, { space: input.entry.space, obj: input.entry.id, name: `thumb-${p.name}`, type: 'image/jpeg' }));
+      input.onProgress?.(++done, input.add.length);
+    }
+    return { photos, thumbs: aligned && thumbs.length === photos.length ? thumbs : null };
+  }
+
+  return { post, change };
 }
 
 export type PhotoLogger = ReturnType<typeof createPhotoLogger>;

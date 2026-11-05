@@ -131,3 +131,48 @@ test('renaming the daycare shows the new name on parents’ phones too, and pare
   const providerCopy = await provider.evaluate(async () => (await window.__syncHost!.contextOf('daycare').data.query({ type: 'daycare.brand' }).once())[0].fields.daycareName);
   expect(providerCopy).toBe('Sunny Days Home Daycare');
 });
+
+test('changing your own name: everyone sees the new name, on old entries too', async ({ browser }) => {
+  const provider = await newPage(browser);
+  await setupProvider(provider, 'Miss Bri');
+  await addFirstFamily(provider, 'Lee', 'Ada');
+  const parent = await pairParent(provider, browser, 'Erin');
+  await provider.getByRole('button', { name: /back/i }).click();
+  await provider.getByTestId('show-all').click();
+  await provider.getByTestId('child-card').click();
+  await provider.getByTestId('add-fab').click();
+  await provider.getByTestId('tile-diaper').click();
+  await provider.getByTestId('diaper-wet').click();
+  await expect(parent.getByTestId('tl-item').first()).toContainText('by Miss Bri', { timeout: 30_000 });
+
+  // the provider renames themselves; the parent's phone shows it on the entry that was already there
+  await provider.getByRole('button', { name: /back/i }).click();
+  await provider.getByTestId('open-settings').click();
+  await provider.getByTestId('my-name-input').fill('Miss Brianna');
+  await provider.getByTestId('save-my-name').click();
+  await expect(provider.getByTestId('my-name-status')).toHaveText('Saved');
+  await expect(provider.getByTestId('my-name')).toHaveText('Miss Brianna');
+  await expect(parent.getByTestId('tl-item').first()).toContainText('by Miss Brianna', { timeout: 30_000 });
+
+  // the parent renames themselves; the provider's family screen and new entries use it
+  await parent.getByTestId('open-settings').click();
+  await parent.getByTestId('my-name-input').fill('Erin (Mama)');
+  await parent.getByTestId('save-my-name').click();
+  await expect(parent.getByTestId('my-name-status')).toHaveText('Saved');
+  await parent.getByRole('button', { name: 'Back', exact: true }).click();
+  await parent.getByTestId('add-fab').click();
+  await parent.getByTestId('tile-checkin').click();
+  await expect(parent.getByTestId('by-Mama')).toHaveAttribute('aria-pressed', 'true'); // the relationship comes from the new name
+  await parent.getByTestId('details-save').click();
+  await expect(parent.getByTestId('tl-item').first()).toContainText('by Mama 🏡');
+
+  await provider.getByRole('button', { name: 'Back', exact: true }).click();
+  await provider.getByTestId('show-all').click();
+  await provider.getByTestId('child-card').click();
+  await expect(provider.getByTestId('tl-item').first()).toContainText('by Mama 🏡', { timeout: 30_000 });
+  // and a reload keeps it
+  await provider.reload();
+  await provider.getByTestId('show-all').click();
+  await provider.getByTestId('child-card').click();
+  await expect(provider.getByTestId('tl-item').first()).toContainText('by Mama 🏡');
+});

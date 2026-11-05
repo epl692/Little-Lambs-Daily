@@ -81,6 +81,9 @@ describe('card text', () => {
   it('names authors', () => {
     expect(authorLine(e('a', { createdByRole: 'provider', createdByName: 'Miss Bri' }))).toBe('by Miss Bri');
     expect(authorLine(e('b', { createdByRole: 'parent', createdByName: 'Erin (Mom)' }))).toBe('by Mom 🏡');
+    // a name the person chose later wins over the one written with the entry
+    expect(authorLine(e('a', { createdByRole: 'provider', createdByName: 'Miss Bri' }), 'Miss Brianna')).toBe('by Miss Brianna');
+    expect(authorLine(e('b', { createdByRole: 'parent', createdByName: 'Erin (Mom)' }), 'Erin (Mama)')).toBe('by Mama 🏡');
     expect(authorLine(e('c', { createdByRole: 'parent', createdByName: 'Erin' }))).toBe('by Erin 🏡');
   });
 });

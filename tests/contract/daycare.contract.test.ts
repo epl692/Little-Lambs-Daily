@@ -31,6 +31,7 @@ moduleContract({
     'daycare.reaction': [{ target: 'entry-1', emoji: 'love', createdBy: 'user-2' }],
     'daycare.settings': [{ daycareName: "Bri's Little Lambs", appName: 'Little Lambs Daily', requireApproval: true, defaultInviteHours: 24, sinceThresholdMinutes: 180 }],
     'daycare.familyIndex': [{ spaceId: 'space-1', familyName: 'Lee' }],
+    'daycare.profile': [{ user: 'user-2', displayName: 'Erin (Mom)', createdBy: 'user-2', createdByRole: 'parent' }],
     'daycare.brand': [{ daycareName: 'Bri’s Little Lambs', appName: 'Lambs' }],
     'daycare.staffInvite': [{ forUser: 'user-3', spaceId: 'space-1', artifact: 'https://example.test/#secret' }],
   },

@@ -9,13 +9,13 @@ import { expect, test, type Page } from '@playwright/test';
 import { addFirstFamily, newPage, pairParent, setupProvider } from './helpers';
 
 /** A real 3000x2000 JPEG with a fake EXIF segment (including a GPS tag name) spliced in after the start marker. */
-async function jpegWithGps(page: Page): Promise<Buffer> {
-  const b64 = await page.evaluate(async () => {
+async function jpegWithGps(page: Page, shade = 0): Promise<Buffer> {
+  const b64 = await page.evaluate(async (shade) => {
     const c = document.createElement('canvas');
     c.width = 3000;
     c.height = 2000;
     const g = c.getContext('2d')!;
-    g.fillStyle = '#e07a5f';
+    g.fillStyle = `hsl(${shade}, 60%, 60%)`;
     g.fillRect(0, 0, 3000, 2000);
     g.fillStyle = '#3d405b';
     g.fillRect(0, 0, 1500, 2000);
@@ -31,7 +31,7 @@ async function jpegWithGps(page: Page): Promise<Buffer> {
     let s = '';
     for (const x of out) s += String.fromCharCode(x);
     return btoa(s);
-  });
+  }, shade);
   return Buffer.from(b64, 'base64');
 }
 
@@ -186,4 +186,65 @@ test('the backup ZIP includes full-size photos, named by child and time', async 
   for (const p of photos) expect([...files[p]!.slice(0, 3)]).toEqual([0xff, 0xd8, 0xff]); // a real JPEG
   expect(JSON.parse(strFromU8(files['data.json']!)).missingPhotos).toBeUndefined();
   await expect(provider.getByTestId('export-done')).toHaveText('Saved 2 records and 2 photos.');
+});
+
+test('a posted photo entry can have photos removed and added, but never end up empty', async ({ browser }) => {
+  const provider = await newPage(browser);
+  await setupProvider(provider);
+  await addFirstFamily(provider, 'Lee', 'Ada');
+  const parent = await pairParent(provider, browser, 'Erin');
+  await provider.getByRole('button', { name: /back/i }).click();
+  await provider.getByTestId('show-all').click();
+  const [s1, s2, s3] = [await jpegWithGps(provider, 10), await jpegWithGps(provider, 120), await jpegWithGps(provider, 220)];
+  await provider.getByTestId('quick-add').click();
+  const [c1] = await Promise.all([provider.waitForEvent('filechooser'), provider.getByTestId('tile-photo').click()]);
+  await c1.setFiles([['a', s1], ['b', s2]].map(([n, buffer]) => ({ name: `${n as string}.jpg`, mimeType: 'image/jpeg', buffer: buffer as Buffer })));
+  await expect(provider.getByTestId('photo-previews').locator('img')).toHaveCount(2, { timeout: 30_000 });
+  await provider.getByTestId('details-save').click();
+  await expect(provider.getByTestId('toast-text')).toHaveText('Posted 2 photos of Ada', { timeout: 20_000 });
+  await provider.getByTestId('child-card').click();
+  await expect(provider.getByTestId('photo-open')).toHaveCount(2);
+  await expect(parent.getByTestId('photo-open')).toHaveCount(2, { timeout: 30_000 });
+  // the parent's phone learns of the entry before the relay has every photo: it must keep asking until they are there
+  await expect(parent.getByTestId('photo-grid').getByTestId('photo-img')).toHaveCount(2, { timeout: 90_000 });
+
+  // today's photos are pinned on the provider's device (never evicted by the storage budget), not on the parent's
+  const pinned = (p: Page) =>
+    p.evaluate(async () => {
+      const c = window.__syncHost!.contextOf('daycare');
+      const row = (await c.data.query({ type: 'daycare.entry' }).once()).filter((o: any) => o.fields.kind === 'photo')[0];
+      return [...row.fields.photos, ...row.fields.thumbs].map((r: any) => c.blobs.observe(r).get().pinned);
+    });
+  await expect.poll(() => pinned(provider)).toEqual([true, true, true, true]);
+  expect(await pinned(parent)).toEqual([false, false, false, false]);
+
+  const photoCount = () =>
+    provider.evaluate(async () => {
+      const rows = (await window.__syncHost!.contextOf('daycare').data.query({ type: 'daycare.entry' }).once()).filter((o: any) => o.fields.kind === 'photo');
+      return { photos: rows[0].fields.photos.length, thumbs: (rows[0].fields.thumbs ?? []).length };
+    });
+
+  // edit: drop one, add one
+  await provider.getByTestId('entry-menu').click();
+  await provider.getByTestId('menu-edit').click();
+  await expect(provider.getByTestId('photo-existing')).toHaveCount(2);
+  await provider.getByTestId('photo-remove-existing').first().click();
+  await expect(provider.getByTestId('photo-existing')).toHaveCount(1);
+  const [c2] = await Promise.all([provider.waitForEvent('filechooser'), provider.getByTestId('photo-more').click()]);
+  await c2.setFiles([{ name: 'c.jpg', mimeType: 'image/jpeg', buffer: s3 }]);
+  await expect(provider.getByTestId('photo-previews').locator('img')).toHaveCount(2, { timeout: 30_000 }); // the kept one and the new one
+  await provider.getByTestId('details-save').click();
+  await expect(provider.getByTestId('toast-text')).toHaveText('Saved changes', { timeout: 30_000 });
+  expect(await photoCount()).toEqual({ photos: 2, thumbs: 2 });
+  await expect(provider.getByTestId('photo-open')).toHaveCount(2);
+  await expect(parent.getByTestId('photo-grid').getByTestId('photo-img')).toHaveCount(2, { timeout: 30_000 });
+
+  // removing them all is not allowed: Save stays off
+  await provider.getByTestId('entry-menu').click();
+  await provider.getByTestId('menu-edit').click();
+  await provider.getByTestId('photo-remove-existing').first().click();
+  await provider.getByTestId('photo-remove-existing').first().click();
+  await expect(provider.getByTestId('photo-existing')).toHaveCount(0);
+  await expect(provider.getByTestId('photo-empty')).toBeVisible();
+  await expect(provider.getByTestId('details-save')).toHaveCount(0);
 });

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { fetchWithRetry } from '../lib/blobfetch';
   import type { BlobRef, BlobsApi } from '../lib/types';
 
   // One image from an attachment: fetched (from this device, a peer or the relay) and shown as soon as it is here.
@@ -19,8 +20,7 @@
       failed = true;
       return;
     }
-    blobs
-      .toBlob(r)
+    fetchWithRetry(blobs, r, { live: () => live })
       .then((b) => {
         if (!live) return;
         made = URL.createObjectURL(b);

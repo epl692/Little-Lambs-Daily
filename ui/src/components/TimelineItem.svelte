@@ -47,7 +47,7 @@
     <ReactionBar {ctx} {entry} />
     <Thread {ctx} {entry} />
     <footer class="meta">
-      <span>{authorLine(entry)}{#if f.editedAt} · edited{/if}</span>
+      <span>{authorLine(entry, ctx.display(String(f.createdBy ?? ''), ''))}{#if f.editedAt} · edited{/if}</span>
       {#if canChange}<EntryMenu {ctx} {entry} />{/if}
     </footer>
   </article>

@@ -5,6 +5,7 @@ import { APP_NAME, APP_VERSION, DAYCARE_NAME } from './constants';
 import { child } from './schema/child';
 import { comment } from './schema/comment';
 import { entry } from './schema/entry';
+import { profile } from './schema/profile';
 import { reaction } from './schema/reaction';
 import { brand, familyIndex, settings, staffInvite } from './schema/staff';
 
@@ -18,7 +19,7 @@ export default {
   // The UI manages Spaces (invites, members, device linking) and reads every Space this device belongs to.
   access: { spaces: { read: 'any', write: 'any', manage: true } },
   provides: {
-    types: [child, entry, comment, reaction, settings, familyIndex, staffInvite, brand],
+    types: [child, entry, comment, reaction, settings, familyIndex, staffInvite, brand, profile],
     views: {
       root: (ctx) =>
         class DaycareRoot extends HTMLElement {

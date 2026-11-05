@@ -50,12 +50,13 @@ const reject = (why: string): AuthzResult => ({ verdict: 'reject', reason: `${RE
 const defer = (why: string): AuthzResult => ({ verdict: 'defer', reason: why });
 
 /** Types a parent may create. `entry` is further limited by kind. */
-const PARENT_CREATE = new Set(['daycare.entry', 'daycare.comment', 'daycare.reaction']);
+const PARENT_CREATE = new Set(['daycare.entry', 'daycare.comment', 'daycare.reaction', 'daycare.profile']);
 /** Fields no parent update may touch: they would change what an item is or who owns it. */
 const PARENT_FROZEN: Record<string, readonly string[]> = {
   'daycare.entry': ['kind', 'child', 'createdBy', 'createdByRole'],
   'daycare.comment': ['target', 'createdBy', 'createdByRole'],
   'daycare.reaction': ['target', 'emoji', 'createdBy'],
+  'daycare.profile': ['user', 'createdBy', 'createdByRole'],
 };
 /** Types whose creator is recorded in `createdBy`. */
 const OWNED = new Set(Object.keys(PARENT_FROZEN));
@@ -101,6 +102,9 @@ export function createDaycareAuthz(deps: AuthzDeps): DaycareAuthz {
         const wantRole = who.role === 'owner' ? 'provider' : 'parent';
         if (body.type !== 'daycare.reaction' && body.fields.createdByRole !== wantRole) return reject(`createdByRole must be ${wantRole}`);
       }
+
+      // A profile is about one person: nobody but a provider may write someone else's.
+      if (body.type === 'daycare.profile' && who.role !== 'owner' && body.op === 'create' && body.fields.user !== who.user) return reject('a profile can only name its own author');
 
       if (who.role === 'owner') return ACCEPT; // provider: everything else, including moderation
 

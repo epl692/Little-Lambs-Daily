@@ -103,7 +103,10 @@ export interface BlobsApi {
   attach(source: Blob, opts: { space: string; obj: string; name?: string; type?: string }): Promise<BlobRef>;
   /** Decrypted bytes; starts the download when the blob is not on this device yet. */
   toBlob(ref: BlobRef): Promise<Blob>;
+  /** Stop an active fetch (a later toBlob starts a new one). */
+  cancel?(ref: BlobRef): void;
   pin?(ref: BlobRef): Promise<void>;
+  unpin?(ref: BlobRef): Promise<void>;
 }
 
 /** What the daycare module hands mount(). */

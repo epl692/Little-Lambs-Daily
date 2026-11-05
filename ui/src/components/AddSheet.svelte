@@ -7,7 +7,9 @@
   import { byChild, childStatus } from '../lib/timeline';
   import { dayRange, fmtTime, fromDateTimeInput, isSameDay, toDateTimeInput } from '../lib/time';
   import Avatar from './Avatar.svelte';
+  import Photo from './Photo.svelte';
   import Stepper from './Stepper.svelte';
+  import type { BlobRef } from '../lib/types';
   import { trapFocus } from '../lib/focus';
 
   // The add flow (SPEC 6.5): What? -> Who? -> Details + Save. Defaults do the heavy lifting; Who is skipped when it is obvious.
@@ -68,6 +70,11 @@
   let busy = $state(false);
   // photos: picked first, shrunk on this device, then tagged to children
   let files = $state<Array<Prepared & { url: string }>>([]);
+  // Editing a posted photo entry (one child's own copy): keep or drop what is there, add more.
+  const photoEdit = !!edit && editKind === 'photo' && !batch;
+  const existing: BlobRef[] = photoEdit && Array.isArray(f.photos) ? (f.photos as BlobRef[]) : [];
+  const existingThumbs: BlobRef[] = photoEdit && Array.isArray(f.thumbs) && f.thumbs.length === existing.length ? (f.thumbs as BlobRef[]) : [];
+  let keep = $state<number[]>(existing.map((_, i) => i));
   let preparing = $state(false);
   let progress = $state('');
   let fileInput: HTMLInputElement | undefined = $state();
@@ -93,7 +100,7 @@
   const hereIds = $derived(kids.filter((c) => here(c.id)).map((c) => c.id));
 
   function defaultBy(): string {
-    const s = ctx.api.spaces.admin?.session()?.displayName ?? '';
+    const s = ctx.display(ctx.me(), ctx.api.spaces.admin?.session()?.displayName ?? '');
     return /\(([^)]+)\)\s*$/.exec(s)?.[1] ?? localStorage.getItem('lld.relationship') ?? s.split(' ')[0] ?? '';
   }
   const byChips = $derived([...new Set([...logger.recent('by'), defaultBy()].filter(Boolean))]);
@@ -103,7 +110,7 @@
     error = '';
     preparing = true;
     try {
-      const room = 12 - files.length;
+      const room = 12 - files.length - keep.length;
       const next: Array<Prepared & { url: string }> = [];
       for (const file of [...list].slice(0, room)) {
         progress = `Preparing photo ${files.length + next.length + 1}…`;
@@ -189,7 +196,8 @@
       const { fields, perChild } = fieldsFor(kind, extra);
       if (edit) {
         const all = batch ?? [edit];
-        for (const e of all) await logger.edit(e.id, { ...fields, ...(perChild?.[String(e.fields.child)] ?? {}), at });
+        const photoFields = photoEdit ? await ctx.photos.change({ entry: edit, keep, add: files, onProgress: (d, t) => (progress = `Saving ${d} of ${t}…`) }) : {};
+        for (const e of all) await logger.edit(e.id, { ...fields, ...(perChild?.[String(e.fields.child)] ?? {}), ...photoFields, at });
         ctx.buzz();
         close();
         ctx.showToast(all.length > 1 ? `Saved changes for ${all.length} kids` : 'Saved changes');
@@ -228,7 +236,7 @@
     queueMicrotask(() => dialog?.querySelector<HTMLElement>('[data-autofocus], .tile, .who-chip, .btn.primary')?.focus());
   });
 
-  const canSave = $derived(!!kind && step === 'details' && kind !== 'diaper' && (kind !== 'photo' || !!edit || files.length > 0));
+  const canSave = $derived(!!kind && step === 'details' && kind !== 'diaper' && (kind !== 'photo' || (photoEdit ? keep.length + files.length > 0 : !!edit || files.length > 0)));
   const targetsNow = $derived(selected.flatMap((id) => kids.filter((c) => c.id === id).map((c) => ({ id: c.id, space: c.space }))));
   const families = $derived(familyCount(targetsNow));
   const title = $derived(batch ? `Edit ${label(kind!).toLowerCase()} for ${batch.length} kids` : edit ? `Edit ${label(kind!).toLowerCase()}` : step === 'what' ? 'Add to the day' : step === 'who' ? `Who? · ${label(kind!)}` : label(kind!));
@@ -340,19 +348,26 @@
           {/each}
         </div>
       {:else if kind === 'photo'}
-        {#if !edit}
+        {#if !edit || photoEdit}
           <div class="thumbs" data-testid="photo-previews">
+            {#each keep as idx (idx)}
+              <div class="pv" data-testid="photo-existing">
+                <Photo blobs={ctx.api.blobs} ref={existingThumbs[idx] ?? existing[idx]!} alt="Posted photo {idx + 1}" />
+                <button type="button" class="x" aria-label="Remove posted photo {idx + 1}" data-testid="photo-remove-existing" onclick={() => (keep = keep.filter((k) => k !== idx))}>✕</button>
+              </div>
+            {/each}
             {#each files as f, i (f.url)}
               <div class="pv">
                 <img src={f.url} alt="Selected photo {i + 1}" />
                 <button type="button" class="x" aria-label="Remove photo {i + 1}" data-testid="photo-remove" onclick={() => removeFile(i)}>✕</button>
               </div>
             {/each}
-            {#if files.length < 12}
+            {#if files.length + keep.length < 12}
               <button type="button" class="pv addmore" aria-label="Add more photos" data-testid="photo-more" disabled={preparing} onclick={() => fileInput?.click()}>＋</button>
             {/if}
           </div>
           {#if families > 1}<p class="warn" role="note" data-testid="families-warning">Visible to {families} families</p>{/if}
+          {#if photoEdit && keep.length + files.length === 0}<p class="warn" role="note" data-testid="photo-empty">A photo post needs at least one photo. Add one, or close this and delete the entry.</p>{/if}
         {/if}
         <label class="field">Caption (optional)
           <textarea bind:value={text} maxlength="2000" data-testid="photo-caption"></textarea>

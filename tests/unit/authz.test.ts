@@ -48,6 +48,21 @@ describe('daycare-authz', () => {
     }
   });
 
+  it('lets a person name themselves, never someone else', async () => {
+    const mine = (by: string, role: string, user = by): AuthzBody => ({ obj: 'p1', op: 'create', type: 'daycare.profile', fields: { user, displayName: 'Erin', createdBy: by, createdByRole: role } });
+    expect((await run('mom-phone', mine('mom', 'parent'))).verdict).toBe('accept');
+    expect((await run('bri-phone', mine('bri', 'provider'))).verdict).toBe('accept');
+    expect((await run('mom-phone', mine('mom', 'parent', 'bri'))).verdict).toBe('reject'); // a profile for the provider
+    expect((await run('mom-phone', mine('bri', 'parent', 'bri'))).verdict).toBe('reject'); // forged author
+    // a parent can rename themselves, but cannot point their profile at someone else or take over another's
+    const own = stored({ createdBy: 'mom', user: 'mom' });
+    const theirs = stored({ createdBy: 'bri', user: 'bri' });
+    const rename: AuthzBody = { obj: 'p1', op: 'update', type: 'daycare.profile', fields: { displayName: 'Erin K' } };
+    expect((await run('mom-phone', rename, own)).verdict).toBe('accept');
+    expect((await run('mom-phone', rename, theirs)).verdict).toBe('reject');
+    expect((await run('mom-phone', { ...rename, fields: { user: 'bri' } }, own)).verdict).toBe('reject');
+  });
+
   it('refuses forged authorship, from anyone', async () => {
     expect((await run('mom-phone', entry('familyNote', {}, 'bri', 'parent'))).verdict).toBe('reject'); // posting as the provider
     expect((await run('mom-phone', entry('familyNote', {}, 'mom', 'provider'))).verdict).toBe('reject'); // claiming provider role

@@ -133,6 +133,33 @@ export function createService(d: { admin: Admin; data: Data; now?: () => number;
     return { space };
   }
 
+  // ---------- my display name ----------
+
+  const nameKey = 'lld.myName';
+  /** The name I chose on this device, if any. */
+  const chosenName = () => kv.getItem(nameKey) ?? undefined;
+
+  /** Write my chosen name as a profile in every Space I am in (create or update). Safe to repeat; also covers Spaces joined later. */
+  async function publishMyName(): Promise<void> {
+    const name = chosenName();
+    const me = admin.session();
+    if (!name || !me) return;
+    for (const sp of await admin.list()) {
+      const id = `profile:${sp.id}:${me.user}`;
+      const have = await data.get(id);
+      if (!have) await data.create(sp.id, 'daycare.profile', { user: me.user, displayName: name, createdBy: me.user, createdByRole: sp.myRole === 'owner' ? 'provider' : 'parent' }, { id });
+      else if (have.fields.displayName !== name) await data.update(id, { displayName: name });
+    }
+  }
+
+  async function renameSelf(name: string): Promise<void> {
+    const n = name.trim();
+    if (!n) throw new Error('Enter your name');
+    if (n.length > 80) throw new Error('That name is too long');
+    kv.setItem(nameKey, n);
+    await publishMyName();
+  }
+
   /** Put the daycare's name in every family Space I own, so parents see it. Safe to repeat. */
   async function publishBrand(): Promise<void> {
     const st = await settings();
@@ -355,7 +382,7 @@ export function createService(d: { admin: Admin; data: Data; now?: () => number;
 
   return {
     state, settings, updateSettings, setupProvider, addFamily, addChild, children,
-    createFamilySpace, publishBrand, setBrand, inviteParent, pendingInvites, revokeInvite, acceptInvite, members, leaveFamily, removeMember, myDevices, revokeMyDevice, removeProvider, revokeDevice,
+    createFamilySpace, publishBrand, setBrand, renameSelf, publishMyName, chosenName, inviteParent, pendingInvites, revokeInvite, acceptInvite, members, leaveFamily, removeMember, myDevices, revokeMyDevice, removeProvider, revokeDevice,
     linkAnotherDevice, joinAsDevice, inviteProvider, reconcileStaff, acceptHandoffs, startStaffSync,
   };
 }

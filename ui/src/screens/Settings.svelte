@@ -24,6 +24,9 @@
   let threshold = $state(180);
   const thresholds = [60, 120, 180, 240, 360];
   let devices = $state<MyDevice[]>([]);
+  // svelte-ignore state_referenced_locally
+  let myName = $state(ctx.display(session?.user ?? '', session?.displayName ?? ''));
+  let myNameStatus = $state('');
   let manageError = $state('');
   let leaveError = $state('');
 
@@ -51,7 +54,7 @@
   }
   async function removeProvider(m: MemberInfo) {
     manageError = '';
-    if (!confirm(`Remove ${m.displayName ?? 'this provider'}? They lose access to every family.`)) return;
+    if (!confirm(`Remove ${ctx.display(m.user, m.displayName ?? 'this provider')}? They lose access to every family.`)) return;
     try {
       await ctx.svc.removeProvider(m.user);
       await loadStaff();
@@ -78,6 +81,16 @@
       ctx.home();
     } catch (e) {
       leaveError = e instanceof Error ? e.message : 'Could not leave';
+    }
+  }
+
+  async function saveMyName() {
+    myNameStatus = '';
+    try {
+      await ctx.svc.renameSelf(myName);
+      myNameStatus = 'Saved';
+    } catch (e) {
+      myNameStatus = e instanceof Error ? e.message : 'Could not save';
     }
   }
 
@@ -119,7 +132,11 @@
 
   <section class="card stack" aria-labelledby="me-h">
     <h2 id="me-h">This device</h2>
-    <p class="muted">Signed in as <strong data-testid="my-name">{session?.displayName ?? 'you'}</strong></p>
+    <p class="muted">Signed in as <strong data-testid="my-name">{ctx.display(session?.user ?? '', session?.displayName ?? 'you')}</strong></p>
+    <label class="field">Your name
+      <input type="text" maxlength="80" bind:value={myName} data-testid="my-name-input" />
+    </label>
+    <div class="row"><button type="button" class="btn" data-testid="save-my-name" disabled={!myName.trim()} onclick={saveMyName}>Save name</button><span class="muted" role="status" data-testid="my-name-status">{myNameStatus}</span></div>
     <ul class="stack" style="list-style: none; padding: 0; margin: 0" aria-label="Devices signed in as you">
       {#each devices.filter((d) => d.active) as d (d.id)}
         <li class="row" data-testid="my-device">
@@ -155,7 +172,7 @@
       <h2 id="st-h">Staff</h2>
       <ul class="stack" style="list-style: none; padding: 0; margin: 0">
         {#each staff as m (m.user)}
-          <li class="row" data-testid="staff-row"><span class="grow">{m.displayName ?? 'Provider'}</span>{#if m.user !== session?.user}<button type="button" class="btn ghost danger" data-testid="remove-provider" onclick={() => removeProvider(m)}>Remove</button>{/if}</li>
+          <li class="row" data-testid="staff-row"><span class="grow">{ctx.display(m.user, m.displayName ?? 'Provider')}</span>{#if m.user !== session?.user}<button type="button" class="btn ghost danger" data-testid="remove-provider" onclick={() => removeProvider(m)}>Remove</button>{/if}</li>
         {/each}
       </ul>
       <button type="button" class="btn" data-testid="invite-provider" onclick={() => ctx.go({ name: 'staffInvite' })}>Invite a provider</button>

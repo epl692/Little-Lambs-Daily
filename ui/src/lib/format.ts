@@ -71,8 +71,8 @@ export function summary(e: Entry): string {
 }
 
 /** "by Miss Bri" for providers; "by Mom 🏡" for a parent (the relationship in "Erin (Mom)"). */
-export function authorLine(e: Entry): string {
-  const name = String(e.fields.createdByName ?? '');
+export function authorLine(e: Entry, chosenName?: string): string {
+  const name = chosenName || String(e.fields.createdByName ?? '');
   if (e.fields.createdByRole === 'parent') {
     const rel = /\(([^)]+)\)\s*$/.exec(name)?.[1];
     return `by ${rel ?? name} 🏡`;

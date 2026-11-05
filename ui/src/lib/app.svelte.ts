@@ -3,6 +3,7 @@ import { createLogger, type Actor, type Logger } from './log';
 import { createService, type AppState, type Service } from './service';
 import { createPhotoLogger, type PhotoLogger } from './photos';
 import { createThreads, groupReactions, groupReplies, type ReactionPill, type Reply, type Threads } from './threads';
+import { planPins, type TrackedMap } from './pins';
 import { dayRange } from './time';
 import type { Admin, BlobRef, JoinRequest, Obj, UiApi } from './types';
 
@@ -70,6 +71,8 @@ export function createApp(api: UiApi) {
     view: { name: 'welcome' } as View,
     history: [] as View[],
     approvals: [] as Approval[],
+    /** Names people chose (profile objects), by user id. Preferred over the name the framework holds. */
+    names: {} as Record<string, string>,
     children: [] as Child[],
     /** Every entry dated today, for every child on this device (live). */
     todayEntries: [] as Entry[],
@@ -102,6 +105,8 @@ export function createApp(api: UiApi) {
     if (s?.appName) app.appName = s.appName;
     if (s?.sinceThresholdMinutes) app.sinceThresholdMinutes = s.sinceThresholdMinutes;
     if (st.mode === 'provider' && !stopSync) stopSync = svc.startStaffSync();
+    applyPins();
+    void svc.publishMyName().catch(() => undefined); // my chosen name reaches Spaces I joined since
     return st;
   }
 
@@ -186,6 +191,24 @@ export function createApp(api: UiApi) {
       .sort((x, y) => x.name.localeCompare(y.name));
   }
   const stopKids = api.data.query({ type: 'daycare.child' }).subscribe((rows) => ((kidRows = rows), applyKids()));
+  // A provider's device keeps the last couple of days of photos (pinned), so the storage budget never evicts them.
+  const PIN_KEY = 'lld.pinned';
+  let photoRows: Obj[] = [];
+  function applyPins() {
+    const blobs = api.blobs;
+    if (app.st?.mode !== 'provider' || !blobs?.pin) return;
+    let tracked: TrackedMap = {};
+    try {
+      tracked = JSON.parse(localStorage.getItem(PIN_KEY) ?? '{}');
+    } catch {
+      /* start over */
+    }
+    const plain = <T>(v: unknown): T => JSON.parse(JSON.stringify(v ?? []));
+    const plan = planPins(photoRows.map((r) => ({ at: Number(r.fields.at), photos: plain<BlobRef[]>(r.fields.photos), thumbs: plain<BlobRef[]>(r.fields.thumbs) })), tracked, Date.now());
+    localStorage.setItem(PIN_KEY, JSON.stringify(plan.next));
+    void Promise.allSettled([...plan.pin.map((r) => blobs.pin!(r)), ...plan.unpin.map((r) => blobs.unpin?.(r))]);
+  }
+  const stopPins = api.data.query({ type: 'daycare.entry', where: (o) => o.fields.kind === 'photo' }).subscribe((rows) => ((photoRows = rows), applyPins()));
   // The daycare name a provider set, copied into each family Space so parents see it (providers read it from their settings).
   const stopBrand = api.data.query({ type: 'daycare.brand' }).subscribe((rows) => {
     const b = rows.find((r) => r.fields.daycareName || r.fields.appName);
@@ -193,6 +216,13 @@ export function createApp(api: UiApi) {
     if (b.fields.daycareName) app.daycareName = String(b.fields.daycareName);
     if (b.fields.appName) app.appName = String(b.fields.appName);
   });
+  const stopNames = api.data.query({ type: 'daycare.profile' }).subscribe((rows) => {
+    const out: Record<string, string> = {};
+    for (const r of rows) if (r.fields.displayName) out[String(r.fields.user)] = String(r.fields.displayName);
+    app.names = out;
+  });
+  /** How to show a person: the name they chose, else the one on record. */
+  const display = (user: string, fallback: string): string => app.names[user] || fallback;
   // Reactions and replies, grouped by the entry they belong to (live).
   const stopReactions = api.data.query({ type: 'daycare.reaction' }).subscribe((rows) => (app.reactions = Object.fromEntries(groupReactions(rows, me()))));
   const stopReplies = api.data.query({ type: 'daycare.comment' }).subscribe((rows) => (app.replies = Object.fromEntries(groupReplies(rows))));
@@ -221,7 +251,7 @@ export function createApp(api: UiApi) {
   // Writing to the timeline (add flow, wake, delete, edit) as whoever this device is.
   const actor = (): Actor => {
     const s = admin.session();
-    return { user: s?.user ?? '', name: s?.displayName ?? 'Someone', role: app.st?.mode === 'provider' ? 'provider' : 'parent' };
+    return { user: s?.user ?? '', name: (s && app.names[s.user]) || s?.displayName || 'Someone', role: app.st?.mode === 'provider' ? 'provider' : 'parent' };
   };
   const logger: Logger = createLogger({ data: api.data, actor });
   const threads: Threads = createThreads({ data: api.data, actor });
@@ -237,7 +267,7 @@ export function createApp(api: UiApi) {
     if (user === me()) return 'You';
     let m = memberNames.get(space);
     if (!m || !m.has(user)) {
-      m = new Map((await admin.members(space).catch(() => [])).map((x) => [x.user, x.displayName ?? 'Someone']));
+      m = new Map((await admin.members(space).catch(() => [])).map((x) => [x.user, display(x.user, x.displayName ?? 'Someone')]));
       memberNames.set(space, m);
     }
     return m.get(user) ?? 'Someone';
@@ -271,6 +301,8 @@ export function createApp(api: UiApi) {
     stopSync?.();
     stopKids();
     stopBrand();
+    stopPins();
+    stopNames();
     stopNaps();
     stopReactions();
     stopReplies();
@@ -281,7 +313,7 @@ export function createApp(api: UiApi) {
     removeApprover();
   }
 
-  return { app, svc, api, logger, threads, photos, nameOf, role, me, refresh, go, back, home, start, stop, showToast, dismissToast, openAdd, closeAdd, buzz };
+  return { app, svc, api, display, logger, threads, photos, nameOf, role, me, refresh, go, back, home, start, stop, showToast, dismissToast, openAdd, closeAdd, buzz };
 }
 
 export type App = ReturnType<typeof createApp>;
