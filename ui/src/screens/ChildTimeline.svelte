@@ -21,6 +21,7 @@
         {#if age(kid.birthDate, ctx.app.now)}<p class="muted small">{age(kid.birthDate, ctx.app.now)}</p>{/if}
       </div>
     {/if}
+    {#if kid}<button type="button" class="btn ghost" data-testid="open-profile" onclick={() => ctx.go({ name: 'profile', child })}>Profile</button>{/if}
   </header>
   {#if kid?.allergies}<p class="card err" role="note" data-testid="allergy-banner">⚠ Allergies: {kid.allergies}</p>{/if}
   <StatusCard {ctx} childId={child} />

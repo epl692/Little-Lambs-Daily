@@ -26,6 +26,7 @@ export type View =
   | { name: 'addFamily' }
   | { name: 'families' }
   | { name: 'timeline'; child: string }
+  | { name: 'profile'; child: string }
   | { name: 'family'; space: string }
   | { name: 'invite'; space: string }
   | { name: 'settings' }
@@ -38,6 +39,8 @@ export interface Child {
   name: string;
   firstName: string;
   allergies: string;
+  careNotes: string;
+  familyNotes: string;
   color?: string;
   birthDate?: string;
 }
@@ -167,6 +170,8 @@ export function createApp(api: UiApi) {
         firstName: String(r.fields.firstName ?? ''),
         name: String(r.fields.nickname || r.fields.firstName || ''),
         allergies: String(r.fields.allergies ?? ''),
+        careNotes: String(r.fields.careNotes ?? ''),
+        familyNotes: String(r.fields.familyNotes ?? ''),
         color: r.fields.color as string | undefined,
         birthDate: r.fields.birthDate as string | undefined,
       }))

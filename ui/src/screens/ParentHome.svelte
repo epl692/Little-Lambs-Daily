@@ -38,7 +38,7 @@
       </div>
     {/if}
     {#if kids.length === 1}
-      <div class="row"><Avatar id={kids[0]!.id} name={kids[0]!.name} color={kids[0]!.color} /><strong data-testid="my-child">{kids[0]!.name}</strong></div>
+      <button type="button" class="row linkrow" data-testid="child-profile-link" aria-label="{kids[0]!.name}, open profile" onclick={() => ctx.go({ name: 'profile', child: kids[0]!.id })}><Avatar id={kids[0]!.id} name={kids[0]!.name} color={kids[0]!.color} /><strong data-testid="my-child">{kids[0]!.name}</strong><span class="muted small">Profile ›</span></button>
     {/if}
     {#if sel === 'all'}
       {#each kids as k (k.id)}<StatusCard {ctx} childId={k.id} name={k.name} />{/each}
@@ -48,9 +48,15 @@
     {#if kids.some((k) => k.allergies && (sel === 'all' || k.id === sel))}
       <p class="muted small" role="note">⚠ Allergies on file: {kids.filter((k) => k.allergies && (sel === 'all' || k.id === sel)).map((k) => `${k.name} (${k.allergies})`).join('; ')}</p>
     {/if}
+    {#if sel !== 'all'}<button type="button" class="btn ghost" data-testid="open-profile" onclick={() => ctx.go({ name: 'profile', child: sel })}>{kids.find((k) => k.id === sel)?.name}’s profile ›</button>{/if}
     <Timeline {ctx} childId={sel} />
   {/if}
 
   <InstallHint />
 </main>
 {#if kids.length > 0}<AddFab {ctx} preset={sel === 'all' ? undefined : [sel]} />{/if}
+
+<style>
+  .linkrow { width: 100%; text-align: left; background: transparent; border: 0; padding: 0; color: inherit; font: inherit; cursor: pointer; min-height: 44px; }
+  .linkrow .muted { margin-left: auto; }
+</style>

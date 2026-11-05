@@ -187,6 +187,8 @@ export function createService(d: { admin: Admin; data: Data; now?: () => number;
   // ---------- members, devices ----------
 
   const members = (space: string): Promise<MemberInfo[]> => admin.members(space);
+  /** A parent leaves their family: this device stops syncing that Space. */
+  const leaveFamily = (space: string) => admin.leave(space);
   const removeMember = (space: string, user: string) => admin.remove(space, user);
   const revokeDevice = (device: string) => admin.revokeDevice(device);
 
@@ -292,7 +294,7 @@ export function createService(d: { admin: Admin; data: Data; now?: () => number;
 
   return {
     state, settings, updateSettings, setupProvider, addFamily, addChild, children,
-    inviteParent, pendingInvites, revokeInvite, acceptInvite, members, removeMember, revokeDevice,
+    inviteParent, pendingInvites, revokeInvite, acceptInvite, members, leaveFamily, removeMember, revokeDevice,
     linkAnotherDevice, joinAsDevice, inviteProvider, reconcileStaff, acceptHandoffs, startStaffSync,
   };
 }

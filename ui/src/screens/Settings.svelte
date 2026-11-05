@@ -3,6 +3,7 @@
   import type { App } from '../lib/app.svelte';
   import { getChoice, setChoice, type ThemeChoice } from '../lib/theme';
   import type { MemberInfo } from '../lib/types';
+  import { familyNameOf } from '../lib/service';
   import Top from '../components/Top.svelte';
 
   let { ctx }: { ctx: App } = $props();
@@ -14,6 +15,7 @@
   let requireApproval = $state(true);
   let hours = $state(24);
   let saved = $state('');
+  let leaveError = $state('');
 
   const themes: { value: ThemeChoice; label: string }[] = [
     { value: 'system', label: 'System' },
@@ -29,6 +31,17 @@
     requireApproval = s.requireApproval;
     hours = s.defaultInviteHours;
   });
+
+  async function leave(space: string, name: string) {
+    if (!confirm(`Leave the ${name} family? This device will stop showing their days.`)) return;
+    try {
+      await ctx.svc.leaveFamily(space);
+      await ctx.refresh();
+      ctx.home();
+    } catch (e) {
+      leaveError = e instanceof Error ? e.message : 'Could not leave';
+    }
+  }
 
   async function saveInvites() {
     await ctx.svc.updateSettings({ requireApproval, defaultInviteHours: Math.min(720, Math.max(1, Math.round(hours) || 24)) });
@@ -54,6 +67,19 @@
     <p class="muted">Signed in as <strong data-testid="my-name">{session?.displayName ?? 'you'}</strong></p>
     <button type="button" class="btn" data-testid="link-another" onclick={() => ctx.go({ name: 'showLinkCode' })}>Link another device</button>
   </section>
+
+  {#if !provider}
+    <section class="card stack" aria-labelledby="lv-h">
+      <h2 id="lv-h">Family</h2>
+      {#each ctx.app.st?.families ?? [] as fam (fam.id)}
+        <div class="row">
+          <span class="grow">{familyNameOf(fam)} family</span>
+          <button type="button" class="btn danger" data-testid="leave-family" onclick={() => leave(fam.id, familyNameOf(fam))}>Leave</button>
+        </div>
+      {/each}
+      {#if leaveError}<p class="err" role="alert">{leaveError}</p>{/if}
+    </section>
+  {/if}
 
   {#if provider}
     <section class="card stack" aria-labelledby="st-h">

@@ -5,7 +5,7 @@
   import { guessMealPeriod, kindsFor, noteKindFor } from '../lib/log';
   import { familyCount, preparePhoto, type Prepared } from '../lib/photos';
   import { byChild, childStatus } from '../lib/timeline';
-  import { fmtTime, fromDateTimeInput, toDateTimeInput } from '../lib/time';
+  import { dayRange, fmtTime, fromDateTimeInput, isSameDay, toDateTimeInput } from '../lib/time';
   import Avatar from './Avatar.svelte';
   import Stepper from './Stepper.svelte';
 
@@ -20,6 +20,7 @@
   const edit = sheet.edit;
   const editKind: Kind | undefined = edit ? kindOf(edit) : undefined;
   const kids = $derived(ctx.app.children);
+  const limit = edit && role === 'parent' ? dayRange(Number(edit.fields.at)) : undefined;
 
   /** Note is one tile; its kind depends on who is writing. */
   type Tile = Kind | 'note';
@@ -177,6 +178,8 @@
       if (endMs === undefined) return void (error = 'Choose when the nap ended');
       if (endMs < at) return void (error = 'The nap cannot end before it started');
     }
+    // parents may move their own entry's time, but only within the day it was logged (SPEC 13.3)
+    if (edit && role === 'parent' && !isSameDay(at, Number(f.at))) return void (error = 'You can only change the time within the same day.');
     if ((kind === 'providerNote' || kind === 'familyNote') && !text.trim()) return void (error = 'Write a note first');
     busy = true;
     try {
@@ -280,7 +283,7 @@
         </div>
         {#if timeOpen}
           <label class="field">{kind === 'nap' ? 'Nap started' : 'Time'}
-            <input type="datetime-local" data-testid="time-input" value={toDateTimeInput(atMs ?? Date.now())} onchange={(e) => (atMs = fromDateTimeInput(e.currentTarget.value))} />
+            <input type="datetime-local" data-testid="time-input" value={toDateTimeInput(atMs ?? Date.now())} min={limit ? toDateTimeInput(limit[0]) : undefined} max={limit ? toDateTimeInput(limit[1] - 60_000) : undefined} onchange={(e) => (atMs = fromDateTimeInput(e.currentTarget.value))} />
           </label>
         {/if}
       {/if}

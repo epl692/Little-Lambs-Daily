@@ -171,6 +171,19 @@ All onboarding logic is `ui/src/lib/service.ts`, tested on real encrypted nodes.
 - **Deferred:** caption-only edits (photos can't be added or removed after posting), pinning today's photos on provider devices,
   eviction tuning, ZIP export of photos (phase 9), per-photo delete, a "photos downloading" indicator beyond the placeholder.
 
+## D-016 Parent experience (phase 8)
+- **Already in from earlier phases:** parent home, sibling switcher with an All view, status header, check-in/out and From Home for
+  parents, and the permission-filtered UI (no provider tiles, no menu on the provider's entries). Phase 8 added what was missing.
+- **Child profile** (`ChildProfile`): reached from the child row on the parent home and a Profile button on a provider's child timeline.
+  Allergies and care notes are read-only; Family notes is a textarea that parents and providers both write (the validator already
+  lets a parent change `familyNotes` and nothing else on a child). Lists the family's parents.
+- **Same-day time edits (SPEC 13.3):** when a parent edits their own entry, the time picker is limited to that entry's day and
+  save refuses another day. This is a UI rule only: the validator does not check it, because a day depends on the device's time zone
+  and every peer must reach the same verdict. A modified client could move its own entry's time; it still cannot touch anyone else's.
+- **Leave family:** Settings shows a Leave button per family for parents (`admin.leave`), then returns to the welcome screen.
+- **Deferred:** changing your own display name (the framework has no rename call), removing a parent or revoking a device from a
+  provider screen, notifications for new items.
+
 ## Open items (SPEC 13) — assumptions so far
 1. Names/colors: defaults from spec (`APP_NAME`, `DAYCARE_NAME`, accent `#14B8A6`).
 2. Since-last threshold: 3h.
