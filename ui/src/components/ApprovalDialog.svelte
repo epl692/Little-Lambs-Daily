@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { App } from '../lib/app.svelte';
+  import { trapFocus } from '../lib/focus';
 
   let { ctx }: { ctx: App } = $props();
   const current = $derived(ctx.app.approvals[0]);
@@ -12,7 +13,7 @@
 
 {#if current}
   <div class="scrim">
-    <div class="card dlg stack" role="alertdialog" aria-modal="true" aria-labelledby="ap-t" aria-describedby="ap-d">
+    <div class="card dlg stack" use:trapFocus role="alertdialog" aria-modal="true" aria-labelledby="ap-t" aria-describedby="ap-d">
       <h2 id="ap-t">{current.title}</h2>
       {#if current.detail}<p class="muted" id="ap-d">{current.detail}</p>{/if}
       <p class="small muted">Check these five words match the other screen exactly.</p>

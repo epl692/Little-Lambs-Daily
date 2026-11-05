@@ -1,7 +1,8 @@
 /**
  * Reports and exports (SPEC 7). Pure: entries in, summaries / CSV / a ZIP out. Everything is built on the device from local data.
  */
-import { zipSync, strToU8, type Zippable } from 'fflate';
+import type { Zippable } from 'fflate';
+import { loadZip } from './zip';
 import { summary, timeText, type Entry } from './format';
 import type { BlobRef } from './types';
 import { dayRange, fmtDuration, fmtTime, shiftDay, startOfDay, toDateInput } from './time';
@@ -181,9 +182,9 @@ const safe = (s: string) =>
     .slice(0, 60) || 'file';
 
 /** Photo paths inside the ZIP: photos/<child>/<date>_<time>_<n>_<name>. */
-export function photoPaths(objects: ExportObject[]): Array<{ path: string; ref: BlobRef; space: string }> {
+export function photoPaths(objects: ExportObject[]): Array<{ path: string; ref: BlobRef; space: string; obj: string }> {
   const kids = new Map(objects.filter((o) => o.type === 'daycare.child').map((o) => [o.id, String(o.fields.nickname || o.fields.firstName || 'child')]));
-  const out: Array<{ path: string; ref: BlobRef; space: string }> = [];
+  const out: Array<{ path: string; ref: BlobRef; space: string; obj: string }> = [];
   const used = new Set<string>();
   for (const o of objects) {
     if (o.type !== 'daycare.entry' || !Array.isArray(o.fields.photos)) continue;
@@ -193,7 +194,7 @@ export function photoPaths(objects: ExportObject[]): Array<{ path: string; ref: 
       let path = `photos/${safe(kids.get(String(o.fields.child)) ?? 'child')}/${stamp}_${i + 1}_${safe(ref.name ?? 'photo.jpg')}`;
       for (let n = 2; used.has(path); n++) path = path.replace(/(\.\w+)?$/, `_${n}$1`);
       used.add(path);
-      out.push({ path, ref, space: o.space });
+      out.push({ path, ref, space: o.space, obj: o.id });
     });
   }
   return out;
@@ -215,6 +216,7 @@ export interface ExportResult {
 }
 
 export async function buildExport(i: ExportInput): Promise<ExportResult> {
+  const { zipSync } = await loadZip();
   const files: Zippable = {};
   const missing: string[] = [];
   let photos = 0;
@@ -240,6 +242,6 @@ export async function buildExport(i: ExportInput): Promise<ExportResult> {
     objects: i.objects,
     ...(missing.length ? { missingPhotos: missing } : {}),
   };
-  files['data.json'] = strToU8(JSON.stringify(data, null, 2));
+  files['data.json'] = new TextEncoder().encode(JSON.stringify(data, null, 2));
   return { zip: zipSync(files), photos, missing };
 }

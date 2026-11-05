@@ -4,6 +4,7 @@
   import AddFab from '../components/AddFab.svelte';
   import InstallHint from '../components/InstallHint.svelte';
   import Avatar from '../components/Avatar.svelte';
+  import SyncPill from '../components/SyncPill.svelte';
   import StatusCard from '../components/StatusCard.svelte';
   import Timeline from '../components/Timeline.svelte';
 
@@ -23,6 +24,7 @@
       <h1 data-testid="parent-title">{family ? `${familyNameOf(family)} family` : ctx.app.appName}</h1>
       <p class="muted small">{ctx.app.daycareName}</p>
     </div>
+    <SyncPill {ctx} />
     <button type="button" class="btn" aria-label="Settings" data-testid="open-settings" onclick={() => ctx.go({ name: 'settings' })}>⚙︎</button>
   </header>
 
@@ -38,7 +40,7 @@
       </div>
     {/if}
     {#if kids.length === 1}
-      <button type="button" class="row linkrow" data-testid="child-profile-link" aria-label="{kids[0]!.name}, open profile" onclick={() => ctx.go({ name: 'profile', child: kids[0]!.id })}><Avatar id={kids[0]!.id} name={kids[0]!.name} color={kids[0]!.color} /><strong data-testid="my-child">{kids[0]!.name}</strong><span class="muted small">Profile ›</span></button>
+      <button type="button" class="row linkrow" data-testid="child-profile-link" onclick={() => ctx.go({ name: 'profile', child: kids[0]!.id })}><Avatar id={kids[0]!.id} name={kids[0]!.name} color={kids[0]!.color} /><strong data-testid="my-child">{kids[0]!.name}</strong><span class="muted small">Profile ›</span></button>
     {/if}
     {#if sel === 'all'}
       {#each kids as k (k.id)}<StatusCard {ctx} childId={k.id} name={k.name} />{/each}

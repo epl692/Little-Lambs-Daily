@@ -1,5 +1,7 @@
 import { unzipSync, strFromU8 } from 'fflate';
-import { describe, expect, it } from 'vitest';
+import * as fflate from 'fflate';
+import { beforeAll, describe, expect, it } from 'vitest';
+import { useZip } from '../../ui/src/lib/zip';
 import type { Entry } from '../../ui/src/lib/format';
 import { attendanceCsv, attendanceRows, buildExport, byWeek, photoPaths, summarizeDay, summaryText, type ExportObject } from '../../ui/src/lib/reports';
 
@@ -98,6 +100,7 @@ describe('attendance', () => {
 });
 
 describe('full export', () => {
+  beforeAll(() => useZip(fflate));
   const ref = (name: string) => ({ $blob: 1 as const, id: name, size: 3, type: 'image/jpeg', name });
   const objects: ExportObject[] = [
     { id: 'a', type: 'daycare.child', space: 's', fields: { firstName: 'Ada' } },

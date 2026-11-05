@@ -149,3 +149,88 @@ test('backup: a parent downloads only their family; a provider gets everyone, ne
   expect(types.has('daycare.settings')).toBe(false);
   expect(all.objects.filter((o: { type: string }) => o.type === 'daycare.entry')).toHaveLength(14);
 });
+
+test('restore: a backup rebuilds the daycare on a fresh device, photos included, and a second run adds nothing', async ({ browser }, testInfo) => {
+  // the original daycare: a family, a seeded day, and a real photo
+  const a = await newPage(browser);
+  await setupProvider(a);
+  await addFirstFamily(a, 'Lee', 'Ada');
+  await seedDay(a, 'Ada');
+  await a.getByRole('button', { name: 'Back', exact: true }).click();
+  await a.getByTestId('show-all').click();
+  const jpeg = Buffer.from(
+    await a.evaluate(async () => {
+      const c = document.createElement('canvas');
+      c.width = 900;
+      c.height = 600;
+      c.getContext('2d')!.fillRect(0, 0, 900, 600);
+      const buf = new Uint8Array(await (await new Promise<Blob>((r) => c.toBlob((x) => r(x!), 'image/jpeg', 0.9))).arrayBuffer());
+      return btoa(String.fromCharCode(...buf));
+    }),
+    'base64',
+  );
+  await a.getByTestId('quick-add').click();
+  const [chooser] = await Promise.all([a.waitForEvent('filechooser'), a.getByTestId('tile-photo').click()]);
+  await chooser.setFiles([{ name: 'nap-time.jpg', mimeType: 'image/jpeg', buffer: jpeg }]);
+  await expect(a.getByTestId('photo-previews').locator('img')).toHaveCount(1, { timeout: 30_000 });
+  await a.getByTestId('details-save').click();
+  await expect(a.getByTestId('toast-text')).toContainText('Posted a photo', { timeout: 20_000 });
+  await a.getByTestId('open-settings').click();
+  await a.getByTestId('open-reports').click();
+  await a.getByTestId('export-photos').check();
+  const [dl] = await Promise.all([a.waitForEvent('download'), a.getByTestId('export-all').click()]);
+  const zipPath = testInfo.outputPath('backup.zip');
+  await dl.saveAs(zipPath);
+  await expect(a.getByTestId('export-done')).toContainText('1 photos');
+
+  // a brand new daycare on a new device
+  const b = await newPage(browser);
+  await setupProvider(b, 'Miss Dee');
+  await b.getByTestId('open-settings').click();
+  await b.getByTestId('open-reports').click();
+
+  // not a backup: a clear message, nothing changes
+  await b.getByTestId('restore-file').setInputFiles({ name: 'notes.zip', mimeType: 'application/zip', buffer: Buffer.from('this is not a zip') });
+  await expect(b.getByTestId('restore-error')).toContainText('could not be opened');
+
+  await b.getByTestId('restore-file').setInputFiles(zipPath);
+  await expect(b.getByTestId('restore-family')).toContainText('Lee Family (will be created): 1 of 1 children, 8 of 8 entries');
+  await b.getByTestId('restore-go').click();
+  await expect(b.getByTestId('restore-done')).toContainText('Restored 1 children, 8 entries, 0 replies and 1 photos; created Lee', { timeout: 60_000 });
+  await expect(b.getByTestId('restore-done')).not.toContainText('could not be restored');
+
+  // the data is really there, written under the restoring provider
+  await b.getByRole('button', { name: 'Back', exact: true }).click(); // settings
+  await b.getByRole('button', { name: 'Back', exact: true }).click(); // roster
+  await b.getByTestId('show-all').click();
+  await b.getByTestId('child-card').click();
+  await expect(b.getByTestId('timeline-title')).toHaveText('Ada');
+  await expect(b.getByTestId('tl-item')).toHaveCount(7);
+  await expect(b.getByTestId('tl-item').filter({ hasText: 'Great morning!' })).toHaveCount(1);
+  const thumb = b.getByTestId('photo-grid').getByTestId('photo-img');
+  await expect(thumb).toBeVisible({ timeout: 30_000 });
+  expect(await thumb.evaluate((i: HTMLImageElement) => i.naturalWidth)).toBe(480); // a fresh thumbnail was made
+  await b.getByTestId('photo-open').click();
+  await expect(b.getByTestId('photo-viewer').getByTestId('photo-img')).toBeVisible({ timeout: 30_000 });
+  await b.getByTestId('viewer-close').click();
+  await b.getByRole('button', { name: 'Back', exact: true }).click(); // roster
+  await b.getByTestId('open-settings').click();
+  await b.getByTestId('open-reports').click();
+
+  // again: nothing to add
+  await b.getByTestId('restore-file').setInputFiles(zipPath);
+  await expect(b.getByTestId('restore-family')).toContainText('(already here): 0 of 1 children, 0 of 8 entries');
+  await b.getByTestId('restore-go').click();
+  await expect(b.getByTestId('restore-done')).toContainText('Restored 0 children, 0 entries, 0 replies and 0 photos; 9 were already here');
+});
+
+test('restore is the provider’s: a parent has no restore option', async ({ browser }) => {
+  const provider = await newPage(browser);
+  await setupProvider(provider);
+  await addFirstFamily(provider, 'Lee', 'Ada');
+  const parent = await pairParent(provider, browser, 'Erin');
+  await parent.getByTestId('open-settings').click();
+  await parent.getByTestId('open-reports').click();
+  await expect(parent.getByTestId('restore-file')).toHaveCount(0);
+  await expect(parent.getByTestId('export-all')).toBeVisible();
+});

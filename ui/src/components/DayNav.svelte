@@ -9,7 +9,7 @@
 <nav class="row daynav" aria-label="Choose day">
   <button type="button" class="btn" aria-label="Previous day" data-testid="day-prev" onclick={() => onchange(shiftDay(day, -1))}>‹</button>
   <div class="grow center date">
-    <button type="button" class="btn ghost" data-testid="day-label" aria-label="{fmtDateLong(day)}. Choose a date" onclick={() => picker?.showPicker?.()}>
+    <button type="button" class="btn ghost" data-testid="day-label" aria-label="{dayLabel(day, now)}, {fmtDateLong(day)}. Choose a date" onclick={() => picker?.showPicker?.()}>
       <strong>{dayLabel(day, now)}</strong>
     </button>
     <input bind:this={picker} class="pick" type="date" tabindex="-1" aria-hidden="true" value={toDateInput(day)} onchange={(e) => { const v = fromDateInput(e.currentTarget.value); if (v) onchange(v); }} />

@@ -21,6 +21,7 @@
   import ApprovalDialog from './components/ApprovalDialog.svelte';
   import PhotoViewer from './components/PhotoViewer.svelte';
   import Snackbar from './components/Snackbar.svelte';
+  import UpdateBanner from './components/UpdateBanner.svelte';
   import WhoReacted from './components/WhoReacted.svelte';
 
   let { api }: { api: UiApi } = $props();
@@ -81,5 +82,6 @@
 {#if ctx.app.whoReacted}
   <WhoReacted {ctx} entry={ctx.app.whoReacted.entry} space={ctx.app.whoReacted.space} />
 {/if}
+<UpdateBanner />
 <Snackbar {ctx} />
 <ApprovalDialog {ctx} />

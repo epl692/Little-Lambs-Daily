@@ -23,6 +23,19 @@ export interface Approver {
   link(device: LinkRequest, sas: string): Promise<boolean>;
 }
 
+/** What the sync pill shows: the relay connection, as the transport module reports it. */
+export interface SyncSnapshot {
+  state: 'unsupported' | 'idle' | 'needs-pairing' | 'connecting' | 'ready' | 'error';
+  detail?: string;
+  url?: string;
+  /** When a packet last arrived from the relay (ms). */
+  lastMessageAt?: number;
+  /** When the connection last came up (ms). */
+  connectedAt?: number;
+}
+let snapshot: SyncSnapshot = { state: 'idle' };
+const syncListeners = new Set<(s: SyncSnapshot) => void>();
+
 let approver: Approver | undefined;
 
 export const bridge = {
@@ -35,6 +48,18 @@ export const bridge = {
   },
   approveJoin: async (req: JoinRequest): Promise<boolean> => (approver ? approver.join(req) : false),
   approveLink: async (device: LinkRequest, sas: string): Promise<boolean> => (approver ? approver.link(device, sas) : false),
+  sync: {
+    get: (): SyncSnapshot => snapshot,
+    subscribe(cb: (s: SyncSnapshot) => void): () => void {
+      syncListeners.add(cb);
+      return () => void syncListeners.delete(cb);
+    },
+    /** Called by the transport module. */
+    publish(patch: Partial<SyncSnapshot>): void {
+      snapshot = { ...snapshot, ...patch };
+      for (const cb of [...syncListeners]) cb(snapshot);
+    },
+  },
   /** Set by app.config.ts. */
   qrToSvg: undefined as ((text: string) => string) | undefined,
 };

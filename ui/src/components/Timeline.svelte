@@ -31,6 +31,22 @@
   });
 
   const rows = $derived(withHourBreaks(sortEntries(applyFilter(entries, filter), order)));
+  // A busy day (100+ cards) paints its first screenful at once and fills in the rest over the next frames, so opening a day
+  // is quick even on a slow phone.
+  const FIRST = 24;
+  const MORE = 40;
+  let limit = $state(FIRST);
+  $effect(() => {
+    void day;
+    void filter;
+    limit = FIRST;
+  });
+  $effect(() => {
+    if (limit >= rows.length) return;
+    const h = requestAnimationFrame(() => (limit = Math.min(rows.length, limit + MORE)));
+    return () => cancelAnimationFrame(h);
+  });
+  const shown = $derived(rows.length > limit ? rows.slice(0, limit) : rows);
   const today = $derived(isSameDay(day, ctx.app.now));
   // SPEC 6.6/7.1: pinned at the top of past days, on request for today. One card per child.
   let showSummary = $state(false);
@@ -80,7 +96,7 @@
     <EmptyArt text={filter !== 'all' ? 'Nothing here for this filter.' : today ? 'Nothing logged yet today.' : 'Nothing was logged on this day.'} />
   {:else}
     <ol class="tl" data-testid="timeline">
-      {#each rows as r (r.key)}
+      {#each shown as r (r.key)}
         {#if r.type === 'hour'}
           <li class="hour" aria-hidden="true">{r.label}</li>
         {:else}

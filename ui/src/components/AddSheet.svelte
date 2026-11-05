@@ -8,6 +8,7 @@
   import { dayRange, fmtTime, fromDateTimeInput, isSameDay, toDateTimeInput } from '../lib/time';
   import Avatar from './Avatar.svelte';
   import Stepper from './Stepper.svelte';
+  import { trapFocus } from '../lib/focus';
 
   // The add flow (SPEC 6.5): What? -> Who? -> Details + Save. Defaults do the heavy lifting; Who is skipped when it is obvious.
   let { ctx, sheet }: { ctx: App; sheet: Sheet } = $props();
@@ -216,10 +217,7 @@
   }
 
   onMount(() => {
-    const key = (e: KeyboardEvent) => e.key === 'Escape' && close();
-    addEventListener('keydown', key);
     dialog?.querySelector<HTMLElement>('button:not([disabled]), input, textarea')?.focus();
-    return () => removeEventListener('keydown', key);
   });
   $effect(() => {
     // move focus into the new step
@@ -234,7 +232,7 @@
 </script>
 
 <button type="button" class="scrim" aria-label="Close" tabindex="-1" onclick={close}></button>
-<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sh-t" bind:this={dialog} data-testid="add-sheet">
+<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sh-t" bind:this={dialog} use:trapFocus={{ onEscape: close }} data-testid="add-sheet">
   <header class="row hd">
     {#if step !== 'what' && !edit}
       <button type="button" class="btn ghost" aria-label="Back" data-testid="sheet-back" onclick={back}>←</button>
@@ -243,7 +241,7 @@
     <button type="button" class="btn ghost" aria-label="Close" data-testid="sheet-close" onclick={close}>✕</button>
   </header>
 
-  <input type="file" accept="image/*" multiple class="hidden" bind:this={fileInput} data-testid="photo-input" onchange={(e) => picked(e.currentTarget.files)} />
+  <input type="file" aria-label="Choose photos" tabindex="-1" accept="image/*" multiple class="hidden" bind:this={fileInput} data-testid="photo-input" onchange={(e) => picked(e.currentTarget.files)} />
   <div class="body stack">
     {#if preparing}<p class="muted" role="status" data-testid="photo-progress">{progress}</p>{/if}
     {#if step === 'what'}

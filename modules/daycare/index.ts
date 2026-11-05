@@ -1,7 +1,7 @@
 import type { ModuleDefinition } from '@sync/modules';
 import { mount } from '../../ui/dist/ui.js';
 import { bridge } from './bridge';
-import { APP_NAME, DAYCARE_NAME } from './constants';
+import { APP_NAME, APP_VERSION, DAYCARE_NAME } from './constants';
 import { child } from './schema/child';
 import { comment } from './schema/comment';
 import { entry } from './schema/entry';
@@ -24,7 +24,7 @@ export default {
         class DaycareRoot extends HTMLElement {
           #unmount: (() => void) | undefined;
           connectedCallback(): void {
-            this.#unmount = mount(this, { appName: APP_NAME, daycareName: DAYCARE_NAME, data: ctx.data, blobs: ctx.blobs, spaces: ctx.spaces, bridge });
+            this.#unmount = mount(this, { appName: APP_NAME, version: APP_VERSION, daycareName: DAYCARE_NAME, data: ctx.data, blobs: ctx.blobs, spaces: ctx.spaces, bridge, sync: bridge.sync });
           }
           disconnectedCallback(): void {
             this.#unmount?.();

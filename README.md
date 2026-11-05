@@ -32,10 +32,11 @@ See SPEC.md section 10. `modules/daycare` is the framework module, `ui/` the Sve
 
 ## Production setup
 
-- Set `RELAY_URL` in `modules/daycare/constants.ts` (e.g. `wss://relay.example.com`) before `npm run build`; the build lists it in the page security policy.
-- Serve `dist/` over HTTPS. Run the relay with `docker compose -f relay/docker-compose.yml up -d --build` behind a TLS reverse proxy.
-- `framework/` currently points at an unmerged upstream branch (see DECISIONS.md D-009).
+See **[DEPLOY.md](DEPLOY.md)**: building for your domain, running the relay (Docker/Unraid) behind HTTPS, first run, a smoke test, updates, backups and troubleshooting.
+
+`framework/` currently points at an unmerged upstream branch (see DECISIONS.md D-009).
 
 ## Status
 
-Phases 1 to 9 done: scaffold, data layer and authz, onboarding and pairing, roster and timeline, the add flow (check-in/out, naps with timers, bottles, snacks, meals, diapers, notes, from-home, batch logging, undo, edit and delete), reactions and threaded replies, photos (compressed, metadata stripped, one copy per family), and the parent experience (profile with family notes, same-day time edits, leave family). and reports (daily summary, attendance CSV/print, ZIP backup). Next: phase 10 (polish and hardening). Photos need the relay to keep blobs: set `BLOB_DIR` (the Docker compose file does).
+
+**All ten build phases are done** (see SPEC.md section 11): data layer and authorization, onboarding and pairing, roster and timeline, the add flow, reactions and threads, photos, the parent experience, reports and exports (daily summary, attendance CSV/print, ZIP backup and restore), and polish (sync status, update banner, accessibility, offline cold start, performance checks). Open items and every place this build differs from the spec are in DECISIONS.md.

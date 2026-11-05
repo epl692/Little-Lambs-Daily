@@ -5,6 +5,7 @@
   import AddFab from '../components/AddFab.svelte';
   import ChildCard from '../components/ChildCard.svelte';
   import NapBanner from '../components/NapBanner.svelte';
+  import SyncPill from '../components/SyncPill.svelte';
 
   let { ctx }: { ctx: App } = $props();
   let pref = $state<'here' | 'all' | undefined>();
@@ -35,6 +36,7 @@
       <h1 data-testid="daycare-title">{ctx.app.daycareName}</h1>
       <p class="muted small">{fmtDateLong(now)}</p>
     </div>
+    <SyncPill {ctx} />
     <button type="button" class="btn" aria-label="Families" data-testid="manage-families" onclick={() => ctx.go({ name: 'families' })}>👪</button>
     <button type="button" class="btn" aria-label="Settings" data-testid="open-settings" onclick={() => ctx.go({ name: 'settings' })}>⚙︎</button>
   </header>

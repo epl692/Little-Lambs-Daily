@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import type { App } from '../lib/app.svelte';
   import Photo from './Photo.svelte';
+  import { trapFocus } from '../lib/focus';
 
   // Full screen: swipe or arrows to move, Save to keep a copy, Escape to close.
   let { ctx }: { ctx: App } = $props();
@@ -26,7 +27,7 @@
   const name = $derived(v.photos[v.index]?.name ?? 'photo.jpg');
 </script>
 
-<div class="viewer" role="dialog" aria-modal="true" aria-label={v.title} data-testid="photo-viewer">
+<div class="viewer" role="dialog" aria-modal="true" aria-label={v.title} use:trapFocus data-testid="photo-viewer">
   <header class="row">
     <button type="button" class="btn ghost" aria-label="Close" data-testid="viewer-close" onclick={close}>✕</button>
     <span class="grow count" aria-live="polite">{v.index + 1} / {n}</span>

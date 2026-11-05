@@ -201,8 +201,39 @@ All onboarding logic is `ui/src/lib/service.ts`, tested on real encrypted nodes.
   A photo that cannot be fetched is listed under `missingPhotos` instead of failing the export. Staff invites (which hold join
   links) and settings are never exported. Folder names are sanitised (a child named `..` cannot escape its folder).
 - **After Leave family** the app only shows families the device still belongs to (the framework keeps what was synced and has no purge call).
-- **Deferred:** daily summary as an image; import/restore (out of scope); attendance by a day's hours worked in a facility timezone
+- **Deferred:** daily summary as an image; attendance by a day's hours worked in a facility timezone
   (all times are the device's local time).
+
+## D-018 Polish and hardening (phase 10), restore, lazy ZIP
+- **ZIP tool loads on first use.** The framework's bundler folds ordinary dynamic imports into the one app file, so `import()` would
+  not have deferred anything. Instead `scripts/build-zip.mjs` bundles fflate into `public/zip.js` (generated, git-ignored, built by
+  `npm run build`), which ships as a precached asset and is loaded by URL the first time someone exports or restores (`ui/src/lib/zip.ts`).
+  The app script is ~16 KB smaller (gzip); the tool still works offline.
+- **Restore (SPEC 12 said out of scope; now in):** provider only, from the Backup ZIP. Families match by id, then by name, else are created
+  (parents must be invited again). Everything keeps its original id, so a second restore adds nothing. Because the validator forces
+  `createdBy` to be the writer, entries and replies come back **under the person restoring** with the original author's name kept; a
+  parent's entry loses its "from home" mark and cannot be edited by that parent. **Reactions are not restored.** Photos are re-uploaded from
+  `photos/` with new thumbnails; a photo entry whose files are missing is skipped and reported. A restore previews what it will add first.
+  Not restored: the staff list, settings, invites, avatars. An item deleted on this device stays deleted.
+- **Sync pill** (● Synced / ◐ Connecting / ○ Offline; tap for details): the transport module publishes its state through the bridge
+  (`bridge.sync`); the pill also watches the browser's online/offline events. SPEC's "Syncing (n)" count is **not available**: the framework
+  exposes no pending-packet count to apps, so "Synced" means "connected to the relay".
+- **Update banner:** the UI watches the service worker itself (`ui/src/lib/updates.ts`); "A new version is ready → Reload". It never
+  reloads on its own, so nobody loses a half-written entry.
+- **Accessibility:** an automated axe WCAG A/AA scan of every main screen in light and dark (a real a11y test, in CI with the rest), focus
+  trapped in sheets and dialogs with Escape and focus-return (`ui/src/lib/focus.ts`), reduced motion verified. Found and fixed: a date button
+  whose spoken name did not contain its visible text, an unlabeled hidden file input, a sideways-scrolling table unreachable by keyboard.
+  A person with a screen reader still needs to do a pass (DEPLOY.md section 9).
+- **Performance:** 150-entry day: the first screenful in ~17 ms and all cards in ~115 ms on a desktop; add sheet opens in ~15-35 ms. The
+  timeline paints 24 cards at once and fills in the rest over the next frames. The test guards regressions on a fast machine; the spec's
+  budget is for a mid-range Android phone, which has **not** been measured. (`content-visibility` was tried and made it slower.)
+- **Offline cold start:** tested end to end (ten entries logged offline, reload with no network, everything still there, all sync on reconnect).
+- **Settings:** "since" threshold control and the real version number added. **Not possible as specced:** a relay URL override. The page's
+  security policy only permits the relay address baked in at build time, and widening it to any address would weaken it. Changing
+  relay means rebuilding (DEPLOY.md). **Deferred:** editing the daycare/app name (it is stored in the provider-only Staff Space, so parents'
+  devices would keep the built-in name), changing your own display name (no framework rename call), removing a parent or revoking a device
+  from a provider screen.
+- **Bundle:** the whole app script, framework included, is 150 KB gzip (budget: under 200 KB excluding the framework); the ZIP tool is a further 6 KB, loaded only when used.
 
 ## Open items (SPEC 13) — assumptions so far
 1. Names/colors: defaults from spec (`APP_NAME`, `DAYCARE_NAME`, accent `#14B8A6`).

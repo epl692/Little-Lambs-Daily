@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { App } from '../lib/app.svelte';
+  import { trapFocus } from '../lib/focus';
   import { emojiChar, emojiLabel } from '../lib/threads';
 
   let { ctx, entry, space }: { ctx: App; entry: string; space: string } = $props();
@@ -18,7 +19,7 @@
 </script>
 
 <button type="button" class="scrim" aria-label="Close" tabindex="-1" onclick={close}></button>
-<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="who-t" data-testid="who-sheet">
+<div class="sheet" role="dialog" aria-modal="true" aria-labelledby="who-t" use:trapFocus={{ onEscape: close }} data-testid="who-sheet">
   <header class="row hd">
     <h2 id="who-t" class="grow">Who reacted</h2>
     <button type="button" class="btn ghost" aria-label="Close" data-testid="who-close" onclick={close}>✕</button>

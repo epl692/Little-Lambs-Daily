@@ -121,11 +121,19 @@ export function createService(d: { admin: Admin; data: Data; now?: () => number;
     const kid = firstChildName.trim();
     if (!family) throw new Error('Enter the family name');
     if (!kid) throw new Error('Enter the first child’s name');
-    const space = await admin.create(`${family}${FAMILY_SUFFIX}`);
+    const space = await createFamilySpace(family);
     await data.create(space.id, 'daycare.child', { firstName: kid, active: true });
+    return { space };
+  }
+
+  /** A new, empty family Space, listed on the Families screen, with every other provider given access. */
+  async function createFamilySpace(family: string): Promise<SpaceInfo> {
+    const staff = await staffSpace();
+    if (!staff) throw new Error('Only a provider can add a family');
+    const space = await admin.create(`${family}${FAMILY_SUFFIX}`);
     await data.create(staff.id, 'daycare.familyIndex', { spaceId: space.id, familyName: family, archived: false });
     await reconcileStaff(); // other providers get access to the new family
-    return { space };
+    return space;
   }
 
   async function addChild(space: string, firstName: string): Promise<Obj> {
@@ -294,7 +302,7 @@ export function createService(d: { admin: Admin; data: Data; now?: () => number;
 
   return {
     state, settings, updateSettings, setupProvider, addFamily, addChild, children,
-    inviteParent, pendingInvites, revokeInvite, acceptInvite, members, leaveFamily, removeMember, revokeDevice,
+    createFamilySpace, inviteParent, pendingInvites, revokeInvite, acceptInvite, members, leaveFamily, removeMember, revokeDevice,
     linkAnotherDevice, joinAsDevice, inviteProvider, reconcileStaff, acceptHandoffs, startStaffSync,
   };
 }

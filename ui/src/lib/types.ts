@@ -2,6 +2,8 @@
  * The slice of the framework the UI uses, described structurally so the UI imports nothing from @sync/*.
  * The daycare module hands over the real objects (`ctx.spaces.admin`, `ctx.data`); tests hand over real nodes.
  */
+import type { SyncSource } from './sync';
+
 export type Role = 'owner' | 'editor' | 'viewer';
 
 export interface SpaceInfo {
@@ -107,10 +109,12 @@ export interface BlobsApi {
 /** What the daycare module hands mount(). */
 export interface UiApi {
   appName: string;
+  version?: string;
   daycareName: string;
   data: Data;
   blobs?: BlobsApi;
   spaces: { admin?: Admin };
   bridge: UiBridge;
+  sync?: SyncSource;
   [capability: string]: unknown;
 }

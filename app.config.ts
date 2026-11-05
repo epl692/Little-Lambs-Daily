@@ -22,7 +22,7 @@ export default {
   transports: ['transport.ws'],
   settings: { transport: { relayUrl: RELAY_URL } },
   // The theme script must be a same-origin file: the generated CSP forbids inline scripts.
-  assets: ['public/theme-init.js'],
+  assets: ['public/theme-init.js', 'public/zip.js'],
   // The relay must be listed here or the browser will refuse to connect to it.
   connectSrc: [RELAY_URL],
 

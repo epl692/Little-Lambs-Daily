@@ -15,6 +15,8 @@
   let requireApproval = $state(true);
   let hours = $state(24);
   let saved = $state('');
+  let threshold = $state(180);
+  const thresholds = [60, 120, 180, 240, 360];
   let leaveError = $state('');
 
   const themes: { value: ThemeChoice; label: string }[] = [
@@ -30,6 +32,7 @@
     const s = await ctx.svc.settings();
     requireApproval = s.requireApproval;
     hours = s.defaultInviteHours;
+    threshold = s.sinceThresholdMinutes;
   });
 
   async function leave(space: string, name: string) {
@@ -41,6 +44,11 @@
     } catch (e) {
       leaveError = e instanceof Error ? e.message : 'Could not leave';
     }
+  }
+
+  async function saveThreshold() {
+    await ctx.svc.updateSettings({ sinceThresholdMinutes: threshold });
+    ctx.app.sinceThresholdMinutes = threshold; // the roster chips update straight away
   }
 
   async function saveInvites() {
@@ -96,6 +104,16 @@
       <p class="small muted">New providers get access to every family automatically.</p>
     </section>
 
+    <section class="card stack" aria-labelledby="sn-h">
+      <h2 id="sn-h">“Since” reminders</h2>
+      <label class="field">Turn the last-bottle and last-diaper chips amber after
+        <select bind:value={threshold} onchange={saveThreshold} data-testid="since-threshold">
+          {#each thresholds as m (m)}<option value={m}>{m / 60} hour{m === 60 ? '' : 's'}</option>{/each}
+        </select>
+      </label>
+      <p class="small muted">A gentle nudge on the roster, never an alarm.</p>
+    </section>
+
     <section class="card stack" aria-labelledby="iv-h">
       <h2 id="iv-h">Parent invites</h2>
       <label class="row"><input type="checkbox" bind:checked={requireApproval} /> <span>Require my approval when a parent joins (recommended)</span></label>
@@ -106,5 +124,5 @@
     </section>
   {/if}
 
-  <p class="muted small center">{ctx.app.appName} · v0.3</p>
+  <p class="muted small center" data-testid="about">{ctx.app.appName} · v{ctx.api.version ?? '?'}</p>
 </main>
