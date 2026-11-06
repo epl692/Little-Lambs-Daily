@@ -10,9 +10,10 @@ RUN test -f framework/package.json || (echo "framework/ is empty: run 'git submo
 RUN npm ci --no-audit --no-fund
 # The relay address is baked into the build: the page's security policy only allows connecting to it.
 ARG RELAY_URL=ws://localhost:8787
+ARG DEV_BUILD=false
 RUN sed -i "s#^export const RELAY_URL = .*#export const RELAY_URL = '${RELAY_URL}';#" modules/daycare/constants.ts \
  && grep -n "^export const RELAY_URL" modules/daycare/constants.ts
-RUN npm run build && npm run verify
+RUN if [ "$DEV_BUILD" = "true" ]; then npm run build:dev; else npm run build && npm run verify; fi
 
 FROM nginx:1.27-alpine
 COPY docker/nginx.conf /etc/nginx/conf.d/default.conf
