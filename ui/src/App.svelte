@@ -14,6 +14,7 @@
   import LinkThisDevice from './screens/LinkThisDevice.svelte';
   import ParentHome from './screens/ParentHome.svelte';
   import ProviderSetup from './screens/ProviderSetup.svelte';
+  import Revoked from './screens/Revoked.svelte';
   import Roster from './screens/Roster.svelte';
   import Settings from './screens/Settings.svelte';
   import ShowLinkCode from './screens/ShowLinkCode.svelte';
@@ -42,6 +43,8 @@
   <main class="page"><p class="err" role="alert">Could not start: {fatal}</p></main>
 {:else if ctx.app.loading}
   <main class="page"><p class="muted" role="status">Loading…</p></main>
+{:else if ctx.app.revoked}
+  <Revoked />
 {:else if view.name === 'welcome'}
   <Welcome {ctx} />
 {:else if view.name === 'providerSetup'}

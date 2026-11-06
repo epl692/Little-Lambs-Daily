@@ -25,6 +25,8 @@ export interface AppState {
   signedUp: boolean;
   staff?: SpaceInfo;
   families: SpaceInfo[];
+  /** Families a provider took off the roster (kept, and can be restored). */
+  archived: SpaceInfo[];
 }
 
 export interface Settings {
@@ -82,11 +84,20 @@ export function createService(d: { admin: Admin; data: Data; now?: () => number;
   async function state(): Promise<AppState> {
     const spaces = await admin.list();
     const staff = spaces.find((s) => isStaffSpace(s) && s.myRole === 'owner');
-    const families = spaces.filter(isFamilySpace);
-    return { mode: staff ? 'provider' : families.length ? 'parent' : 'welcome', signedUp: !!admin.session(), staff, families };
+    const all = spaces.filter(isFamilySpace);
+    // Only a provider keeps the index of archived families (in the Staff Space); a parent's device just sees its own families.
+    const gone = staff ? await archivedSpaceIds(staff.id) : new Set<string>();
+    const families = all.filter((f) => !gone.has(f.id));
+    const archived = all.filter((f) => gone.has(f.id));
+    return { mode: staff ? 'provider' : families.length ? 'parent' : 'welcome', signedUp: !!admin.session(), staff, families, archived };
   }
 
   const staffSpace = async () => (await state()).staff;
+
+  async function archivedSpaceIds(staffId: string): Promise<Set<string>> {
+    const rows = await data.query({ type: 'daycare.familyIndex', space: staffId }).once();
+    return new Set(rows.filter((r) => r.fields.archived === true).map((r) => String(r.fields.spaceId)));
+  }
 
   async function settings(): Promise<Settings> {
     const staff = await staffSpace();
@@ -197,6 +208,29 @@ export function createService(d: { admin: Admin; data: Data; now?: () => number;
     return data.create(space, 'daycare.child', { firstName: n, active: true });
   }
 
+  /**
+   * Take a family off the roster (a child leaves the daycare). Nothing is deleted: the family drops out of the lists, its
+   * children are hidden on every device (parents included), and restoring brings them all back.
+   */
+  async function archiveFamily(space: string): Promise<void> {
+    const staff = await staffSpace();
+    if (!staff) throw new Error('Only a provider can remove a family');
+    const idx = (await data.query({ type: 'daycare.familyIndex', space: staff.id }).once()).find((r) => r.fields.spaceId === space);
+    if (!idx) throw new Error('That family is not in the daycare’s list');
+    await data.update(idx.id, { archived: true });
+    for (const c of await children(space)) await data.update(c.id, { active: false });
+  }
+  async function restoreFamily(space: string): Promise<void> {
+    const staff = await staffSpace();
+    if (!staff) throw new Error('Only a provider can restore a family');
+    const idx = (await data.query({ type: 'daycare.familyIndex', space: staff.id }).once()).find((r) => r.fields.spaceId === space);
+    if (idx) await data.update(idx.id, { archived: false });
+    for (const c of await data.query({ type: 'daycare.child', space }).once()) if (c.fields.active === false) await data.update(c.id, { active: true });
+  }
+
+  /** Take a child off the roster. Nothing is deleted: their entries stay, and restoring brings everything back. */
+  const setChildActive = (id: string, active: boolean): Promise<Obj> => data.update(id, { active });
+
   async function children(space: string): Promise<Obj[]> {
     return (await data.query({ type: 'daycare.child', space }).once()).filter((c) => c.fields.active !== false);
   }
@@ -263,6 +297,13 @@ export function createService(d: { admin: Admin; data: Data; now?: () => number;
     const rec = space ? (await admin.members(space.id)).find((m) => m.user === me.user) : undefined;
     const list = rec?.devices ?? [{ id: me.device.deviceId, name: me.device.name, active: true }];
     return list.map((d) => ({ id: d.id, name: d.name, active: d.active, current: d.id === me.device.deviceId }));
+  }
+
+  /** True once another of my devices has signed this one out. */
+  async function thisDeviceRevoked(): Promise<boolean> {
+    const me = admin.session();
+    if (!me) return false;
+    return (await myDevices()).some((d) => d.current && !d.active);
   }
 
   /** Sign one of my other devices out: it stops receiving data and the Spaces rotate their keys. */
@@ -381,8 +422,8 @@ export function createService(d: { admin: Admin; data: Data; now?: () => number;
   }
 
   return {
-    state, settings, updateSettings, setupProvider, addFamily, addChild, children,
-    createFamilySpace, publishBrand, setBrand, renameSelf, publishMyName, chosenName, inviteParent, pendingInvites, revokeInvite, acceptInvite, members, leaveFamily, removeMember, myDevices, revokeMyDevice, removeProvider, revokeDevice,
+    state, settings, updateSettings, setupProvider, addFamily, addChild, setChildActive, archiveFamily, restoreFamily, children,
+    createFamilySpace, publishBrand, setBrand, renameSelf, publishMyName, chosenName, inviteParent, pendingInvites, revokeInvite, acceptInvite, members, leaveFamily, removeMember, myDevices, thisDeviceRevoked, revokeMyDevice, removeProvider, revokeDevice,
     linkAnotherDevice, joinAsDevice, inviteProvider, reconcileStaff, acceptHandoffs, startStaffSync,
   };
 }

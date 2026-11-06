@@ -6,6 +6,7 @@
   import QrCode from '../components/QrCode.svelte';
   import QrScanner from '../components/QrScanner.svelte';
   import Top from '../components/Top.svelte';
+  import { explainReach, summarizeSdp, type CandidateSummary } from '../lib/ice';
 
   // Connect two devices straight to each other (WebRTC), for when the relay cannot be reached: the same Wi-Fi is enough, no internet.
   // The devices swap two codes by camera or paste: one makes an offer, the other answers, the first accepts the answer.
@@ -21,6 +22,18 @@
   let error = $state('');
   let scanning = $state(false);
   let startCount = 0;
+  let hints = $state<string[]>([]);
+  const summary = async (c: string): Promise<CandidateSummary | undefined> => {
+    try {
+      return summarizeSdp((await direct?.inspect(c)) ?? '');
+    } catch {
+      return undefined;
+    }
+  };
+  /** After a failure: read both codes' addresses and say what is probably wrong. */
+  async function diagnose() {
+    hints = explainReach(code ? await summary(code) : undefined, incoming.trim() ? await summary(incoming.trim()) : undefined);
+  }
 
   const PROBLEMS: Record<string, string> = {
     malformed: 'That does not look like a connection code. Copy it again in full.',
@@ -66,6 +79,8 @@
       step = 'done';
     } catch (e) {
       error = explain(e);
+      const c = (e as { code?: string }).code;
+      if (c === 'timeout' || c === 'unreachable' || !c) await diagnose();
     } finally {
       busy = false;
     }
@@ -88,6 +103,7 @@
   function again() {
     if (session) direct?.cancel(session);
     session = code = incoming = error = '';
+    hints = [];
     step = 'choose';
   }
 </script>
@@ -114,6 +130,7 @@
       <textarea bind:value={incoming} data-testid="direct-answer-input"></textarea>
     </label>
     {#if error}<p class="err" role="alert" data-testid="direct-error">{error}</p>{/if}
+    {#if hints.length}<ul class="small muted" data-testid="direct-hints">{#each hints as h (h)}<li>{h}</li>{/each}</ul>{/if}
     <button type="button" class="btn primary big" data-testid="direct-connect" disabled={busy || !incoming.trim()} onclick={connectWithAnswer}>{busy ? 'Connecting…' : 'Connect'}</button>
     <button type="button" class="btn ghost" onclick={again}>Start over</button>
   {:else if step === 'answering' && !code}
@@ -133,6 +150,8 @@
     </label>
     <CopyShare text={code} title="Reply code" />
     <p class="muted" role="status" aria-live="polite">Waiting for the other device to connect…</p>
+    <button type="button" class="btn ghost" data-testid="direct-diagnose" onclick={diagnose}>Not connecting? Find out why</button>
+    {#if hints.length}<ul class="small muted" data-testid="direct-hints">{#each hints as h (h)}<li>{h}</li>{/each}</ul>{/if}
     <button type="button" class="btn ghost" onclick={again}>Start over</button>
   {:else}
     <div class="card center stack" role="status" data-testid="direct-done">

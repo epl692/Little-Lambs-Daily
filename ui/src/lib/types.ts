@@ -10,6 +10,8 @@ export interface DirectPairing {
   acceptOffer(code: string): Promise<{ code: string; sessionId: string }>;
   acceptAnswer(sessionId: string, code: string): Promise<void>;
   cancel(sessionId: string): void;
+  /** The network addresses inside a code (for explaining a failed connection), as the session description text. */
+  inspect(code: string): Promise<string>;
 }
 
 export type Role = 'owner' | 'editor' | 'viewer';

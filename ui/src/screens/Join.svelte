@@ -16,7 +16,18 @@
   let sas = $state('');
   let error = $state('');
   let scanning = $state(false);
-  const relationship = $derived(chip === 'Other' ? other.trim() : chip);
+  // A provider's invite is for the Owner role; a parent's is for an Editor. Peek at the link so a provider is only asked their name.
+  function roleOf(link: string): string | undefined {
+    try {
+      const at = link.indexOf('#/join/');
+      const b64 = (at >= 0 ? link.slice(at + 7) : link.trim()).replace(/-/g, '+').replace(/_/g, '/');
+      return (JSON.parse(atob(b64 + '='.repeat((4 - (b64.length % 4)) % 4))) as { r?: string }).r;
+    } catch {
+      return undefined;
+    }
+  }
+  const isProvider = $derived(roleOf(text) === 'owner');
+  const relationship = $derived(isProvider ? '' : chip === 'Other' ? other.trim() : chip);
   const words = (s: string) => s.split('-').join(' · ');
 
   async function submit(e: Event) {
@@ -54,6 +65,7 @@
       <label class="field">Your name
         <input type="text" bind:value={name} autocomplete="name" required data-testid="join-name" />
       </label>
+      {#if !isProvider}
       <div class="stack" role="group" aria-label="Your relationship to the child">
         <span class="field">I am their…</span>
         <div class="row wrap">
@@ -65,6 +77,7 @@
           <input type="text" bind:value={other} placeholder="e.g. Aunt" aria-label="Relationship" />
         {/if}
       </div>
+      {/if}
       {#if error}<p class="err" role="alert" data-testid="join-error">{error}</p>{/if}
       <button type="submit" class="btn primary big" data-testid="join-submit">Join</button>
     </form>
