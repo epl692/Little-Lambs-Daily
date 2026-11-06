@@ -1,0 +1,46 @@
+# Everything: the app (nginx) and the relay. Optional: Caddy for automatic HTTPS (docker compose --profile tls up -d --build).
+# Copy .env.example to .env and edit it first; see README.md "Run it with Docker".
+services:
+  app:
+    build:
+      context: .
+      args:
+        RELAY_URL: ${RELAY_URL:-ws://localhost:8787}
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8080}:80"
+
+  relay:
+    build:
+      context: .
+      dockerfile: relay/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${RELAY_PORT:-8787}:8787"
+    environment:
+      BLOB_DIR: /data/blobs
+      BLOB_TTL_DAYS: ${BLOB_TTL_DAYS:-90}
+    volumes:
+      - relay-data:/data
+
+  # HTTPS in front of both, for real use on phones (needs APP_DOMAIN and RELAY_DOMAIN pointing at this machine, ports 80 and 443 open).
+  caddy:
+    image: caddy:2-alpine
+    profiles: ["tls"]
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?set APP_DOMAIN in .env}
+      RELAY_DOMAIN: ${RELAY_DOMAIN:?set RELAY_DOMAIN in .env}
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    depends_on:
+      - app
+      - relay
+
+volumes:
+  relay-data:
+  caddy-data:

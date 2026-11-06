@@ -8,3 +8,4 @@ test-results/
 .DS_Store
 public/zip.js
 public/qr-decode.js
+.env

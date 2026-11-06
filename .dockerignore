@@ -1,0 +1,12 @@
+.git
+**/node_modules
+dist
+ui/dist
+test-results
+playwright-report
+coverage
+*.log
+.env
+public/zip.js
+public/qr-decode.js
+framework/**/dist

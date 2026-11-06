@@ -8,6 +8,8 @@ and the web host never see names, notes or photos in readable form.
 > relay are tested together on a developer machine; the Docker image and the reverse-proxy snippets below have not yet been run on
 > an Unraid box, so do the smoke test in section 5 before inviting parents.
 
+> **Shortcut:** `docker compose up -d --build` runs the app and the relay together (README.md, "Run it with Docker"). The sections below explain the same pieces step by step, for hosting the app somewhere else.
+
 ## 1. What you need
 
 - A domain you control, with two names, for example `lambs.example.com` (the app) and `relay.example.com` (the relay).
