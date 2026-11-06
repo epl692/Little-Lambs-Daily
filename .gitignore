@@ -9,3 +9,4 @@ test-results/
 public/zip.js
 public/qr-decode.js
 .env
+docker/certs/

@@ -6,6 +6,7 @@ services:
       context: .
       args:
         RELAY_URL: ${RELAY_URL:-ws://localhost:8787}
+        DEV_BUILD: ${DEV_BUILD:-false}
     restart: unless-stopped
     ports:
       - "${APP_PORT:-8080}:80"
@@ -37,6 +38,23 @@ services:
     volumes:
       - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
+    depends_on:
+      - app
+      - relay
+
+  # Local HTTPS with a self-signed cert — no domain or port forwarding needed.
+  # App: https://172.16.0.3:4433   Relay: wss://172.16.0.3:4434
+  # Install the cert on each device: docker/certs/cert.pem
+  nginx-local-tls:
+    image: nginx:1.27-alpine
+    profiles: ["local-tls"]
+    restart: unless-stopped
+    ports:
+      - "4433:4433"
+      - "4434:4434"
+    volumes:
+      - ./docker/nginx-local-tls.conf:/etc/nginx/conf.d/local-tls.conf:ro
+      - ./docker/certs:/certs:ro
     depends_on:
       - app
       - relay
