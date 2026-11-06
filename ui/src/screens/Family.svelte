@@ -10,6 +10,14 @@
   let kids = $state<Obj[]>([]);
   let members = $state<MemberInfo[]>([]);
   let newKid = $state('');
+  // Removing a child is deliberate: open "Manage" on their row, then type their name.
+  let managing = $state('');
+  let typed = $state('');
+  let managingFamily = $state(false);
+  let typedFamily = $state('');
+  const familyMatches = $derived(!!info && typedFamily.trim().toLowerCase() === familyNameOf(info).trim().toLowerCase());
+  const nameOf = (k: Obj) => String(k.fields.firstName ?? '').trim();
+  const matches = (k: Obj) => typed.trim().toLowerCase() === nameOf(k).toLowerCase() && !!nameOf(k);
   let error = $state('');
   // svelte-ignore state_referenced_locally
   let pending = $state(ctx.svc.pendingInvites(space));
@@ -41,6 +49,34 @@
       error = err instanceof Error ? err.message : 'Could not add the child.';
     }
   }
+  async function removeKid(k: Obj) {
+    const name = String(k.fields.firstName ?? 'this child');
+    error = '';
+    try {
+      await ctx.svc.setChildActive(k.id, false);
+      managing = '';
+      typed = '';
+      ctx.showToast(`${name} removed`, async () => void (await ctx.svc.setChildActive(k.id, true)));
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Could not remove the child.';
+    }
+  }
+  async function removeFamily() {
+    if (!info) return;
+    error = '';
+    try {
+      const name = familyNameOf(info);
+      await ctx.svc.archiveFamily(space);
+      await ctx.refresh();
+      ctx.go({ name: 'families' }, { replace: true });
+      ctx.showToast(`${name} family removed`, async () => {
+        await ctx.svc.restoreFamily(space);
+        await ctx.refresh();
+      });
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Could not remove the family.';
+    }
+  }
   async function cancelInvite(id: string) {
     await ctx.svc.revokeInvite(space, id);
     pending = ctx.svc.pendingInvites(space);
@@ -61,7 +97,21 @@
     <h2 id="kids-h">Children</h2>
     <ul class="stack" style="list-style: none; padding: 0; margin: 0">
       {#each kids as k (k.id)}
-        <li class="row"><span class="avatar" aria-hidden="true">{String(k.fields.firstName ?? '?').slice(0, 1).toUpperCase()}</span><span data-testid="child-row">{k.fields.firstName}</span></li>
+        <li class="stack" style="gap: 8px">
+          <div class="row"><span class="avatar" aria-hidden="true">{String(k.fields.firstName ?? '?').slice(0, 1).toUpperCase()}</span><span class="grow" data-testid="child-row">{k.fields.firstName}</span><button type="button" class="btn ghost small" data-testid="manage-child" aria-expanded={managing === k.id} aria-label={`Manage ${k.fields.firstName}`} onclick={() => ((managing = managing === k.id ? '' : k.id), (typed = ''))}>Manage</button></div>
+          {#if managing === k.id}
+            <div class="card stack" data-testid="manage-panel">
+              <p class="small muted">Added by mistake? Removing {nameOf(k)} takes them off the roster and out of the parents’ view. Nothing is deleted, and you can undo it right after.</p>
+              <label class="field">Type {nameOf(k)}’s name to remove them
+                <input type="text" bind:value={typed} autocomplete="off" data-testid="remove-confirm-input" />
+              </label>
+              <div class="row">
+                <button type="button" class="btn danger" data-testid="remove-child" disabled={!matches(k)} onclick={() => removeKid(k)}>Remove {nameOf(k)}</button>
+                <button type="button" class="btn ghost" onclick={() => ((managing = ''), (typed = ''))}>Keep</button>
+              </div>
+            </div>
+          {/if}
+        </li>
       {:else}
         <li class="muted">No children yet</li>
       {/each}
@@ -93,4 +143,17 @@
     {/each}
     <button type="button" class="btn primary big" data-testid="invite-parent" onclick={() => ctx.go({ name: 'invite', space })}>Invite a parent</button>
   </section>
+
+  {#if ctx.app.st?.mode === 'provider'}
+    <section class="card stack" aria-labelledby="rf-h">
+      <div class="row"><h2 id="rf-h" class="grow">Manage family</h2><button type="button" class="btn ghost small" data-testid="manage-family" aria-expanded={managingFamily} onclick={() => ((managingFamily = !managingFamily), (typedFamily = ''))}>{managingFamily ? 'Close' : 'Open'}</button></div>
+      {#if managingFamily && info}
+        <p class="small muted">Is this child leaving the daycare? Removing the {familyNameOf(info)} family hides them everywhere, parents included. Nothing is deleted, and you can restore them any time from the Families screen.</p>
+        <label class="field">Type {familyNameOf(info)} to remove this family
+          <input type="text" bind:value={typedFamily} autocomplete="off" data-testid="remove-family-input" />
+        </label>
+        <button type="button" class="btn danger" data-testid="remove-family" disabled={!familyMatches} onclick={removeFamily}>Remove the {familyNameOf(info)} family</button>
+      {/if}
+    </section>
+  {/if}
 </main>

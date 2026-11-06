@@ -69,6 +69,8 @@ export function createApp(api: UiApi) {
 
   const app = $state({
     loading: true,
+    /** This device was signed out from another device: nothing it holds can work again until it is reset. */
+    revoked: false,
     st: undefined as AppState | undefined,
     view: { name: 'welcome' } as View,
     history: [] as View[],
@@ -101,6 +103,7 @@ export function createApp(api: UiApi) {
   async function refresh(): Promise<AppState> {
     const st = await svc.state();
     app.st = st;
+    app.revoked = await svc.thisDeviceRevoked().catch(() => false);
     applyKids();
     const s = await svc.settings().catch(() => undefined);
     if (s?.daycareName) app.daycareName = s.daycareName;

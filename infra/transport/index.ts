@@ -1,6 +1,6 @@
 // Infrastructure module: the WebSocket relay transport. Like the identity module it may import framework packages.
 // The relay URL comes from app settings (`settings.transport.relayUrl`, set in app.config.ts from RELAY_URL).
-import { createWebRtcTransport } from '@sync/transport-webrtc';
+import { createWebRtcTransport, decodePairing } from '@sync/transport-webrtc';
 import { createWebSocketTransport } from '@sync/transport-websocket';
 import type { ModuleDefinition } from '@sync/modules';
 import { bridge } from '../../modules/daycare/bridge';
@@ -40,6 +40,7 @@ export default {
             acceptOffer: (code) => t.acceptOffer(code),
             acceptAnswer: (id, code) => t.acceptAnswer(id, code),
             cancel: (id) => t.cancelPairing(id),
+            inspect: async (code) => (await decodePairing(code, 0)).sdp,
           };
           return t;
         },

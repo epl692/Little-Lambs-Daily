@@ -5,6 +5,17 @@
 
   let { ctx }: { ctx: App } = $props();
   const families = $derived(ctx.app.st?.families ?? []);
+  const archived = $derived(ctx.app.st?.archived ?? []);
+  let restoreError = $state('');
+  async function restore(space: string) {
+    restoreError = '';
+    try {
+      await ctx.svc.restoreFamily(space);
+      await ctx.refresh();
+    } catch (e) {
+      restoreError = e instanceof Error ? e.message : 'Could not restore the family.';
+    }
+  }
   const kids = $derived(
     ctx.app.children.reduce<Record<string, string[]>>((m, c) => ((m[c.space] ??= []).push(c.name), m), {}),
   );
@@ -29,6 +40,19 @@
         </li>
       {/each}
     </ul>
+  {/if}
+  {#if archived.length}
+    <section class="card stack" aria-labelledby="ar-h">
+      <h2 id="ar-h">Removed families</h2>
+      <p class="small muted">Kept in case they come back. Their days are hidden from everyone until you restore them.</p>
+      {#each archived as f (f.id)}
+        <div class="row" data-testid="archived-family">
+          <span class="grow">{familyNameOf(f)}</span>
+          <button type="button" class="btn" data-testid="restore-family" onclick={() => restore(f.id)}>Restore</button>
+        </div>
+      {/each}
+      {#if restoreError}<p class="err" role="alert">{restoreError}</p>{/if}
+    </section>
   {/if}
   <button type="button" class="btn primary" data-testid="add-family" onclick={() => ctx.go({ name: 'addFamily' })}>+ Family</button>
 </main>

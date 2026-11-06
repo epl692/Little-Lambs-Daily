@@ -37,7 +37,17 @@ test('profile: a parent writes family notes the daycare sees; allergies and care
   await provider.getByTestId('show-all').click();
   await provider.getByTestId('child-card').click();
   await provider.getByTestId('open-profile').click();
-  await expect(provider.getByTestId('family-notes')).toHaveValue('Pick-up is by Grandpa on Fridays', { timeout: 20_000 });
+  // the daycare reads the family's notes but cannot overwrite them; allergies and care notes are the daycare's to edit
+  await expect(provider.getByTestId('profile-family-notes')).toHaveText('Pick-up is by Grandpa on Fridays', { timeout: 20_000 });
+  await expect(provider.getByTestId('family-notes')).toHaveCount(0);
+  await provider.getByTestId('edit-allergies').fill('Peanuts, eggs');
+  await provider.getByTestId('edit-care').fill('Naps at 1 with the blue blanket');
+  await provider.getByTestId('care-save').click();
+  await expect(provider.getByText('Saved')).toBeVisible();
+  await parent.reload();
+  await parent.getByTestId('child-profile-link').click();
+  await expect(parent.getByTestId('profile-allergies')).toHaveText('Peanuts, eggs', { timeout: 20_000 });
+  await expect(parent.getByTestId('profile-care')).toHaveText('Naps at 1 with the blue blanket');
   await parent.screenshot({ path: 'test-results/shots/parent-profile.png' });
 });
 

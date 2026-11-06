@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import type { App } from '../lib/app.svelte';
   import { getChoice, setChoice, type ThemeChoice } from '../lib/theme';
+  import { resetThisDevice, RESET_WARNING } from '../lib/reset';
   import type { MemberInfo } from '../lib/types';
   import type { MyDevice } from '../lib/service';
   import { familyNameOf } from '../lib/service';
@@ -179,6 +180,7 @@
     </ul>
     {#if manageError}<p class="err" role="alert">{manageError}</p>{/if}
     <button type="button" class="btn" data-testid="link-another" onclick={() => ctx.go({ name: 'showLinkCode' })}>Link another device</button>
+    <button type="button" class="btn ghost danger" data-testid="reset-device" onclick={() => confirm(RESET_WARNING) && resetThisDevice()}>Reset this device</button>
   </section>
 
   <section class="card stack" aria-labelledby="dc-h">
